@@ -246,6 +246,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
     public function elements_form() {
 
         $gateway = new Wc_Asiabill_Gateway('',$this->id);
+
         $session_token = $this->save_token($gateway);
 
         if( $session_token ){
@@ -256,12 +257,10 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
             }
 
             echo '<div id="wc-'.esc_attr( $this->id ).'-cc-form" class="wc-credit-card-form wc-payment-form" style="background:transparent;margin-top:1em">
-            <div id="asiabill-card-element" class="wc-asiabill-elements-field">
-                <div id="card-element" class="ab-elemen" style="max-height: 44px;margin: 5px 0;"></div>
-                <div id="card-error" class="woocommerce-error hide" role="alert"></div>
+            <div id="asiabill-card" class="wc-asiabill-elements-field">
+                <div id="asiabill-card-element" class="ab-elemen" style="max-height: 44px;margin: 5px 0;"></div>
+                <div id="asiabill-card-error" class="woocommerce-error hide" role="alert"></div>
             </div>
-           
-            <script>if(typeof initAsiabillPaymentSdk != "undefined"){initAsiabillPaymentSdk();}</script>
             </div>';
 
             // 保存的卡选项
@@ -315,7 +314,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         $src = ($this->test == 'yes'?Wc_Asiabill_Api::SANDBOX:Wc_Asiabill_Api::DOMAIN).'/static/v3/js/AsiabillPayment.min.js';
         wp_enqueue_script('asiabill_payment', $src, [], ASIABILL_OL_PAYMENT_VERSION, true);
 
-        wp_enqueue_script('asiabill_checkout', ASIABILL_PAYMENT_URL.'/assets/js/asiabill_checkout.min.js', ['jquery', 'jquery-payment','asiabill_payment' ], ASIABILL_OL_PAYMENT_VERSION, true);
+        wp_enqueue_script('asiabill_checkout', ASIABILL_PAYMENT_URL.'/assets/js/asiabill_checkout.js', ['jquery', 'jquery-payment','asiabill_payment' ], ASIABILL_OL_PAYMENT_VERSION, true);
 
         wp_localize_script(
             'asiabill_checkout',
@@ -328,10 +327,14 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
     public function javascript_params(){
 
-        $script_params = [
+        global $wp;
+
+        $script_params = array(
             'merNo' => $this->get_option('merchant_no'),
             'gatewayNo' => $this->get_option('gateway_no'),
             'mode' => $this->test == 'yes'? 'uat': 'pro',
+            'checkoutPayPage' => is_checkout_pay_page(),
+            'billing' => null,
             'layout' => [
                 'pageMode' => 'inner',// 页面风格模式  inner | block
                 'style' => [
@@ -347,7 +350,34 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
                     ]
                 ],
             ],
-        ];
+        );
+
+        // If we're on the pay page we need to pass stripe.js the address of the order.
+		if ( isset( $_GET['pay_for_order'] ) && 'true' === $_GET['pay_for_order'] ) {
+            $order_id = wc_clean( $wp->query_vars['order-pay'] ); // wpcs: csrf ok, sanitization ok, xss ok.
+            $order    = wc_get_order( $order_id );
+
+            if ( is_a( $order, 'WC_Order' ) ) {
+                $address = array(
+                    'address' => [
+                        'city' => $order->get_billing_city(),
+                        'country' => $order->get_billing_country(),
+                        'line1' => $order->get_billing_address_1(),
+                        'line2' => $order->get_billing_address_2(),
+                        'postalCode' => $order->get_billing_postcode(),
+                        'state' => $order->get_billing_state()
+                    ],
+                    'email' => $order->get_billing_email(),
+                    'firstName' => $order->get_billing_first_name(),
+                    'lastName' => $order->get_billing_last_name(),
+                    'phone' => $order->get_billing_phone()
+
+                );
+
+                $script_params['billing'] = $address;
+            }
+
+        }
 
         return $script_params;
     }
@@ -373,14 +403,6 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
         $result_data = json_decode($input,true);
 
-        if( !isset($result_data['merNo'])
-            || !isset($result_data['gatewayNo'])
-            || $this->get_option('merchant_no') != $result_data['merNo']
-            || $this->get_option('gateway_no') != $result_data['gatewayNo']
-        ){
-            echo 'success';
-            die();
-        }
 
         $gateway = new Wc_Asiabill_Gateway('',$this->id);
         $signInfo = $result_data['signInfo'];

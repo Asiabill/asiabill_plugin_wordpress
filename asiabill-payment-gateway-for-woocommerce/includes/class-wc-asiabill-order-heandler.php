@@ -74,17 +74,18 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
                 $fail_message = __( 'Unable to process this payment, ', 'asiabill').$order_info;
             }
 
+
             if( $fail_message ){
                 $this->logger->debug('pay for '.$this->id.' status : '.$order_state.' fail : '.$order_info);
                 wc_add_notice( $fail_message, 'error' );
-                wp_safe_redirect( wc_get_checkout_url() );
+                wp_safe_redirect( $order->get_checkout_payment_url() );
                 die();
             }
 
         } catch (\Exception $e){
             $this->logger->error('System error:'.$e->getMessage());
             wc_add_notice( __( 'System error', 'asiabill'), 'error' );
-            wp_safe_redirect( wc_get_checkout_url() );
+            wp_safe_redirect( $order->get_checkout_payment_url() );
             die();
         }
 

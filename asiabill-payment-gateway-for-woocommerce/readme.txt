@@ -4,7 +4,7 @@ Donate link: https://en.asiabill.com/
 Tags: asiabill, credit card, bitcoin, cryptocurrencies, crypto, payment gateway, payment request, sofort, giropay, p24, paysafecard, apple pay, google pay, alipay, wechat pay, 支付宝, 微信支付, 收款, 支付, USD, CNY
 Requires at least: 4.7
 Tested up to: 5.8
-Stable tag: 1.1.5
+Stable tag: 1.1.9
 Requires PHP: 7.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.zh-cn.html
@@ -27,12 +27,27 @@ https://en.asiabill.com/contact
 
 
 == Screenshots ==
-1. The order details screen with reference No., payment method and order history information.
-2. The Asiabill payment gateway settings screen used to configure the main Asiabill gateway.
-3. Payment method options for customers to select.
-4. The Asiabill hosted payment page.
+
+1. Asiabill provides various payment methods from Credit Card Payment to Local Payment Methods.
+2. The Payment Setting page is used to set up the main Asiabill Gateway. For any queries please contact us at <a href="https://en.asiabill.com/contact">https://en.asiabill.com/contact</a>.
+3. Customers can choose to pay with a saved payment method or a new card and save their card details for future purchases.
+4. You can keep track of the transaction state changes as well as all the other payment information for each order in this page.
 
 == Changelog ==
+= 1.1.9 =
+* Refuse to pay again from the order
+* Solve the problem that test mode cannot update the status
+
+= 1.1.7 =
+* Conflict resolution
+* Fixed a small issue
+
+= 1.1.7 =
+* Fixed a small issue
+
+= 1.1.6 =
+* Fixed a small issue
+
 = 1.1.5 =
 * Optimized test mode
 

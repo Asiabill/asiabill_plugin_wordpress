@@ -1,57 +1,81 @@
+jQuery( function( $ ) {
+    'use strict';
 
-
-    let $ = jQuery;
-
-
-    let initAsiabillPaymentSdk = () => {
-
-        let is_init = false;
-
-        let getCookie = (name) => {
-            let strcookie = document.cookie;
-            let arrcookie = strcookie.split("; ");
-            for ( var i = 0; i < arrcookie.length; i++) {
-                var arr = arrcookie[i].split("=");
-                if (arr[0] == name){
-                    return arr[1];
-                }
+    function getCookie (name) {
+        let strcookie = document.cookie;
+        let arrcookie = strcookie.split("; ");
+        for ( var i = 0; i < arrcookie.length; i++) {
+            var arr = arrcookie[i].split("=");
+            if (arr[0] == name){
+                return arr[1];
             }
-            return "";
-        };
+        }
+        return "";
+    }
 
-        let form = $( 'form.woocommerce-checkout' );
+    try {
+        var ab = AsiabillPay(getCookie('AsiabillSessionToken'));
+    }catch( error ) {
+        console.log( error );
+        return;
+    }
 
-        let ab = AsiabillPay(getCookie('AsiabillSessionToken'));
+    let initAsiabillPaymentSdk =  {
 
-        ab.elementInit("payment_steps", {
-            formId: 'asiabill-card-element', // 页面表单id
-            frameId: 'asiabill-card-frame', // 生成的IframeId
-            mode: wc_asiabill_params.mode,
-            customerId: wc_asiabill_params.customer_id,
-            autoValidate:false,
-            layout: wc_asiabill_params.layout
-        }).then((res) => {
-            console.log("initRES", res)
-        }).catch((err) => {
-            console.log("initERR", err)
-        });
+        is_init : false,
+        form : null,
+        checkPage : wc_asiabill_params.checkoutPayPage,
+        card_error : $('#asiabill-card-error'),
 
-        let btn = $('#place_order');
-        btn.on('click',function () {
-            return checkoutOrder();
-        });
+        init : function () {
 
-        let checkoutOrder = () => {
+            this.form = this.checkPage === '1' ? $( '#order_review' ) : $( 'form.woocommerce-checkout' );
 
-            let customerObj = {
-                description: '',
-                email: $( '#billing_email' ).val(),
-                firstName: $( '#billing_first_name' ).val(),
-                lastName: $( '#billing_last_name' ).val(),
-                phone: $( '#billing_phone' ).val()
-            };
-            let paymentMethodObj = {
-                "billingDetail": {
+            if( this.checkPage === '1' ){
+                initAsiabillPaymentSdk.createElements();
+            }else{
+                $( document.body ).on( 'updated_checkout', function() {
+                    initAsiabillPaymentSdk.createElements();
+                });
+            }
+
+        },
+
+        createElements: function () {
+            ab.elementInit("payment_steps", {
+                formId: 'asiabill-card',
+                formWrapperId: 'asiabill-card-element',
+                frameId: 'asiabill-card-frame',
+                mode: wc_asiabill_params.mode,
+                customerId: wc_asiabill_params.customer_id,
+                autoValidate:false,
+                layout: wc_asiabill_params.layout
+            }).then((res) => {
+                console.log("initRES", res)
+            }).catch((err) => {
+                console.log("initERR", err)
+            });
+
+            let btn = $('#place_order');
+            btn.on('click',function () {
+                return initAsiabillPaymentSdk.checkoutOrder();
+            });
+        },
+
+        checkoutOrder : function () {
+
+            if( this.checkPage === '1' ){
+                var billing = wc_asiabill_params.billing;
+            }else {
+                let customerObj = {
+                    description: '',
+                    email: $( '#billing_email' ).val(),
+                    firstName: $( '#billing_first_name' ).val(),
+                    lastName: $( '#billing_last_name' ).val(),
+                    phone: $( '#billing_phone' ).val()
+                };
+
+                var billing = {
                     "address": {
                         "city": $( '#billing_city' ).val(),
                         "country": $( '#billing_country' ).val(),
@@ -64,7 +88,11 @@
                     "firstName": customerObj.firstName,
                     "lastName": customerObj.lastName ,
                     "phone": customerObj.phone
-                },
+                };
+            }
+
+            let paymentMethodObj = {
+                "billingDetail": billing,
                 "card": {
                     "cardNo": "",
                     "cardExpireMonth": "",
@@ -76,13 +104,12 @@
                 //"signInfo": ''
             };
 
-            errorMessage('');
+            this.errorMessage('');
 
             if($('#payment_method_wc_asiabill_creditcard').is( ':checked' )){
 
                 let token = $('input[name=wc-wc_asiabill_creditcard-payment-token]:checked').val();
 
-                //console.log('token => '+token);
                 if( token != undefined && token!== 'new' ){
                     // 使用token支付
                     return true
@@ -96,40 +123,50 @@
                     }).then((result) => {
                         if( result.data.code === "0" ){
                             // 保存成功
-                            form.append(
+                            initAsiabillPaymentSdk.form.append(
                                 $( '<input type="hidden" />' )
                                     .addClass( 'asiabill-payment' )
                                     .attr( 'name', 'asiabill_payment' )
                                     .val( result.data.data.customerPaymentMethodId )
                             );
-                            form.trigger( 'submit' );
+                            initAsiabillPaymentSdk.form.append(
+                                $( '<input type="hidden" />' )
+                                    .addClass( 'asiabill-payment' )
+                                    .attr( 'name', 'asiabill_check_page' )
+                                    .val( initAsiabillPaymentSdk.checkPage )
+                            );
+                            initAsiabillPaymentSdk.form.trigger( 'submit' );
                         }
                         else {
                             // 保存失败
-                            errorMessage(result.data.message);
+                            initAsiabillPaymentSdk.errorMessage(result.data.message);
                         }
                     });
                     return false;
                 }
 
             }
-        };
+        },
 
-        window.addEventListener("getErrorMessage", e => {
-            errorMessage(e.detail.errorMessage);
-        });
-
-        let card_error = $('#card-error');
-        let errorMessage = (message = '') => {
-            if( message.trim() != '' ){
-                card_error.html(message).removeClass('hide');
+        errorMessage : function (message = ''){
+            if( message.trim() !== '' ){
+                this.card_error.html(message).removeClass('hide');
             }else{
-                card_error.html('').addClass('hide');
+                this.card_error.html('').addClass('hide');
             }
         }
 
 
     };
+
+    window.addEventListener("getErrorMessage", e => {
+        initAsiabillPaymentSdk.errorMessage(e.detail.errorMessage);
+    });
+
+    initAsiabillPaymentSdk.init();
+
+
+});
 
 
 

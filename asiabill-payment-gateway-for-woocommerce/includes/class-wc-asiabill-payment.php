@@ -7,6 +7,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
     var $id;
     var $logger;
+    var $icon = array();
 
     function __construct($id){
         $this->id = esc_attr($id);
@@ -105,7 +106,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
                 'title' => __ ( 'Debug Log', 'asiabill' ),
                 'type' => 'checkbox',
                 'label' => __ ( 'Log Debug Messages', 'asiabill'),
-                'description' => __ ( 'Debug Path:', 'asiabill' ).'<code>'.wp_upload_dir().'/wc-logs/woocommerce-gateway-asiabill-*</code>',
+                'description' => __ ( 'Debug Path:', 'asiabill' ).'<code>'.wp_upload_dir()['path'].'/wc-logs/woocommerce-gateway-asiabill-*</code>',
                 'default' => 'no',
             ]
         ];
@@ -164,13 +165,6 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         }
 
         if( !in_array($_POST['notifyType'],['PaymentResult','OrderStatusChanged','Void','Capture']) ){
-            echo 'success';
-            die();
-        }
-
-        if( $this->get_option('merchant_no') != $_POST['merNo']
-            || $this->get_option('gateway_no') != $_POST['gatewayNo']
-        ){
             echo 'success';
             die();
         }

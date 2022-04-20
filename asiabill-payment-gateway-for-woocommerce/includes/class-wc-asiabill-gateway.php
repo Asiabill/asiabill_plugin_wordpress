@@ -45,17 +45,19 @@ class Wc_Asiabill_Gateway
         $billing_info['zip'] = $billing_info['address']['postalCode'];
         $billing_info['address'] = $billing_info['address']['line1'].' '.$billing_info['address']['line2'];
 
-        $shipping_info = $this->get_shipping();
         $shipping = [];
-        $shipping['shipFirstName'] = $shipping_info['firstName'];
-        $shipping['shipLastName'] = $shipping_info['lastName'];
-        $shipping['shipPhone'] = $shipping_info['phone'];
-        $shipping['shipCountry'] = $shipping_info['address']['country'];
-        $shipping['shipState'] = $shipping_info['address']['state'];
-        $shipping['shipCity '] = $shipping_info['address']['city'];
-        $shipping['shipAddress'] = $shipping_info['address']['line1'].' '.$shipping_info['address']['line2'];
-        $shipping['shipZip'] = $shipping_info['address']['postalCode'];
 
+        if( $this->order->has_shipping_address() ) {
+            $shipping_info = $this->get_shipping();
+            $shipping['shipFirstName'] = $shipping_info['firstName'];
+            $shipping['shipLastName'] = $shipping_info['lastName'];
+            $shipping['shipPhone'] = $shipping_info['phone'];
+            $shipping['shipCountry'] = $shipping_info['address']['country'];
+            $shipping['shipState'] = $shipping_info['address']['state'];
+            $shipping['shipCity '] = $shipping_info['address']['city'];
+            $shipping['shipAddress'] = $shipping_info['address']['line1'] . ' ' . $shipping_info['address']['line2'];
+            $shipping['shipZip'] = $shipping_info['address']['postalCode'];
+        }
         $parameter = array_merge($gateway_info,$order_info,$billing_info,$shipping);
 
         $parameter['paymentMethod'] = $this->get_payment_method();
@@ -64,7 +66,7 @@ class Wc_Asiabill_Gateway
         $parameter['interfaceInfo'] = 'wordpress';
         $parameter['isMobile'] = $this->is_mobile();
         $parameter['signInfo'] = $this->get_v2_sign($parameter);
-        $parameter['remark'] = '';
+        $parameter['remark'] = sanitize_text_field($_POST['asiabill_check_page']);
 
         $this->logger->debug($this->get_payment_method().' test['.$this->settings['use_test_model'].']: '.json_encode($parameter));
 
@@ -99,13 +101,15 @@ class Wc_Asiabill_Gateway
         $order_info = $this->get_order();
         unset($order_info['goods_detail']);
 
-        $shipping_info = $this->get_shipping();
-
         $parameter = array_merge($gateway_info,$order_info);
 
         $parameter['customerPaymentMethodId'] = $payment_method_id;
-        $parameter['shipping'] = $shipping_info;
-        $parameter['ip'] = $this->get_ip();
+
+        if( $this->order->has_shipping_address() ){
+            $parameter['shipping'] = $this->get_shipping();
+        }
+
+        $parameter['ip'] = $this->order->get_customer_ip_address();
         $parameter['returnUrl'] = $this->return_url;
         $parameter['callbackUrl'] = $this->callback_url;
         $parameter['platform'] = 'wordpress';
@@ -113,6 +117,7 @@ class Wc_Asiabill_Gateway
         $parameter['tradeType'] = 'web';
         $parameter['webSite'] = get_site_url();
         $parameter['signInfo'] = $this->get_confirm_sign($parameter);
+        $parameter['remark'] = sanitize_text_field($_POST['asiabill_check_page']);
 
         $this->logger->info('confirm charge test['.$this->settings['use_test_model'].']: '.json_encode($parameter));
 
@@ -166,7 +171,7 @@ class Wc_Asiabill_Gateway
         return [
             'orderNo' =>  $order->get_id(),
             'orderCurrency' => $order->get_currency(),
-            'orderAmount' => round ($order->get_total(), 2 ),
+            'orderAmount' => sprintf('%.2f', $order->get_total()),
             'goods_detail' => htmlspecialchars(json_encode($product_data)),
             'goodsDetail' => $goods_detail
         ];
@@ -297,25 +302,6 @@ class Wc_Asiabill_Gateway
             $isMobile = 1;
         }
         return $isMobile;
-    }
-
-    private function get_ip(){
-
-        if(!empty($_SERVER["HTTP_CLIENT_IP"])) {
-            $cip = $_SERVER["HTTP_CLIENT_IP"];
-        } else if(!empty($_SERVER["HTTP_X_FORWARDED_FOR"])) {
-            $cip = $_SERVER["HTTP_X_FORWARDED_FOR"];
-        } else if(!empty($_SERVER["REMOTE_ADDR"])) {
-            $cip = $_SERVER["REMOTE_ADDR"];
-        } else {
-            $cip = '';
-        }
-
-        preg_match("/[\d\.]{7,15}/", $cip, $cips);
-        $cip = isset($cips[0]) ? $cips[0] : 'unknown';
-
-        unset($cips);
-        return $cip;
     }
 
 }
