@@ -7,7 +7,7 @@ Asiabill WooCommerce 支付插件
 
 1、推荐使用插件市场进行安装，搜索“Asiabill Payment Gateway for WooCommerce”
 
-2、离线安装：Plugins -> Add New 点击Upload Plugin按钮，上传安装包
+2、离线安装：Plugins -> Add New 点击Upload Plugin按钮，上传安装包:asiabill-payment-gateway-for-woocommerce.zip
 
 3、设置：WooCommerce -> Settings -> Payments：你可以看到Asiabill的相关支付列表
 
@@ -36,7 +36,7 @@ Asiabill WooCommerce 支付插件
 
 测试卡号
 -
-* 支付成功：4000020951595032
+* 支付成功：4242424242424242
 * 支付失败：4000000000009995
 * 3D交易：4000002500003155
 
