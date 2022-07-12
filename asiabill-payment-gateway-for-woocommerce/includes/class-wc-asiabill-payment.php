@@ -5,11 +5,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
-    var $id;
-    var $logger;
-    var $icon = array();
+    public $icon = array();
+    protected $logger;
+    protected $confirm_status = ['processing', 'completed', 'refunded', 'shipping','shipped','close'];
 
     function __construct($id){
+
         $this->id = esc_attr($id);
         $this->logger = new Wc_Asiabill_logger($id);
         $this->title = $this->get_option ( 'title' );
@@ -26,6 +27,18 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         $this->init_form_fields ();
         // 加载设置
         $this->init_settings ();
+
+    }
+
+    public function admin_options() {
+
+        wp_enqueue_script('ab_admin', ASIABILL_PAYMENT_URL.'/assets/js/ab_admin.js', ['jquery'], MONEYCOLLECT_VERSION, true);
+        wp_localize_script(
+            'ab_admin',
+            'ab_admin_params',
+            apply_filters( 'ab_admin_params', ['id' => $this->id] ));
+        $this->tokenization_script();
+        parent::admin_options();
     }
 
     /**
@@ -46,18 +59,11 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
                 'default' => '',
                 'css' => 'width:400px'
             ],
-            'use_test_model' => [
-                'title' => __ ( 'Use Test Model', 'asiabill' ),
+            'use_test_mode' => [
+                'title' => __ ( 'Use Test Mode', 'asiabill' ),
                 'type' => 'checkbox',
                 'label' => '使用测试模式',
                 'default' => 'no',
-            ],
-            'merchant_no' => [
-                'title' => __ ( 'Mer No', 'asiabill' ),
-                'type' => 'text',
-                'description' => '',
-                'default' => '',
-                'css' => 'width:400px'
             ],
             'gateway_no' => [
                 'title' => __ ( 'Gateway No', 'asiabill' ),
@@ -71,13 +77,6 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
                 'type' => 'text',
                 'description' => '',
                 'default' => '',
-                'css' => 'width:400px'
-            ],
-            'test_merchant_no' => [
-                'title' => __ ( 'Test Mer No', 'asiabill' ),
-                'type' => 'text',
-                'description' => '',
-                'default' => '12246',
                 'css' => 'width:400px'
             ],
             'test_gateway_no' => [
@@ -125,77 +124,77 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
      * @return array
      */
     function process_payment($order_id){
+
         $order = new WC_Order ( $order_id );
-        return [
-            'result' => 'success',
-            'redirect' => $order->get_checkout_payment_url ( true )
-        ];
-    }
 
+        $parameter = $this->order_parameter($order);
 
-    /**
-     * 支付重定向
-     * @param $order_id
-     */
-    function receipt_page($order_id){
+        $parameter['deliveryAddress'] = array(
+            'address' => $order->get_shipping_address_1().' '.$order->get_shipping_address_2(),
+            'city' => $order->get_shipping_city(),
+            'country' => $order->get_shipping_country(),
+            'email' => $order->get_billing_email(),
+            'firstName' => $order->get_shipping_first_name(),
+            'lastName' => $order->get_shipping_last_name(),
+            'phone' => $order->get_shipping_phone(),
+            'state' => $order->get_shipping_state(),
+            'zip' => $order->get_shipping_postcode()
+        );
 
-        $order = new WC_Order($order_id);
+        $parameter['billingAddress'] = array(
+            'address' => $order->get_billing_address_1().' '.$order->get_billing_address_2(),
+            'city' => $order->get_billing_city(),
+            'country' => $order->get_billing_country(),
+            'email' => $order->get_billing_email(),
+            'firstName' => $order->get_billing_first_name(),
+            'lastName' => $order->get_billing_last_name(),
+            'phone' => $order->get_billing_phone(),
+            'state' => $order->get_billing_state(),
+            'zip' => $order->get_billing_postcode()
+        );
 
-        if( !$order || !$order->needs_payment() ){
-            wp_redirect($this->get_return_url());
-            die();
+        $this->logger->info('checkoutPayment : '.json_encode($parameter));
+        $res = $this->api()->request('checkoutPayment',array('body' => $parameter));
+
+        if( $res['code'] == '0000'){
+            return [
+                'result' => 'success',
+                'redirect' => $res['data']['redirectUrl']
+            ];
+        }else{
+            throw new Exception($res['message']);
         }
 
-        $gateway = new Wc_Asiabill_Gateway($order,$this->id);
-        $gateway->pay_method();
     }
 
+    /**
+     * 异步回调处理
+     * @return void
+     */
     function asiabill_callback(){
 
         if ( ! isset( $_SERVER['REQUEST_METHOD'] )
             || ( 'POST' !== $_SERVER['REQUEST_METHOD'] )
             || ! isset( $_GET['wc-api'] )
             || ( $this->id.'_callback' !== $_GET['wc-api'] )
-            || !isset($_POST['merNo'])
-            || !isset($_POST['gatewayNo'])
-            || !isset($_POST['notifyType'])
         ) {
             echo 'success';
             die();
         }
 
-        if( !in_array($_POST['notifyType'],['PaymentResult','OrderStatusChanged','Void','Capture']) ){
+        $asiabill_api = $this->api();
+
+        $webhook_data = $asiabill_api->getWebhookData();
+
+        if( !preg_match("/^transaction|pre-authorized/",$webhook_data['type']) ){
             echo 'success';
             die();
         }
 
-        try{
+        $this->logger->info('webhook: ' . json_encode( $webhook_data) );
 
-            $result_data = $this->sanitize_post();
-
-            $this->logger->info('Incoming callback post : ' . json_encode($result_data));
-
-            $gateway = new Wc_Asiabill_Gateway('',$this->id);
-
-            if( in_array($_POST['notifyType'],['Void','Capture']) ){
-                $validation_sign = $gateway->get_notify_sign($result_data);
-            }else{
-                $validation_sign = $gateway->get_result_sign($result_data);
-            }
-
-            if( isset($_POST['signInfo']) && strtoupper($_POST['signInfo']) === $validation_sign ){
-                $code = $result_data['orderStatus'];
-                $order_status = $this->get_order_status($code);
-                if( $order_status ){
-                    $this->change_order_status($result_data,$order_status);
-                }
-            }
-            else{
-                $this->logger->debug('Incoming callback failed validation: '.$validation_sign);
-            }
-
-        }catch (\Exception $e){
-            $this->logger->error($e->getMessage());
+        if( $asiabill_api->verification() ){
+            $this->change_order_status($webhook_data['data']);
         }
 
         echo 'success';
@@ -203,29 +202,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
     }
 
-    function get_order_status($code){
-        $order_status = false;
-        switch ( $code ){
-            case 1:
-                $order_status = 'processing';
-                break;
-            case -1:
-            case -2:
-                $order_status = 'on-hold';
-                break;
-            case 0:
-                if( substr($_POST['orderInfo'],0,5) == 'I0061' ){
-                    // 重复支付订单
-                    $order_status = 'processing';
-                }else{
-                    $order_status = 'failed';
-                }
-                break;
-        }
-        return $order_status;
-    }
-
-    function change_order_status($result_data,$order_state){
+    protected function change_order_status($result_data){
 
         $order_id = $result_data['orderNo'] ;
         $order = wc_get_order( $order_id );
@@ -234,9 +211,28 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
             throw new Exception('order is not object !');
         }
 
-        if( ! $order->has_status( [ 'processing', 'completed', 'refunded' ] ) ){
+        $get_status = $result_data['tradeStatus'] ?? $result_data['orderStatus'];
 
-            $note = 'tradeNo:'.$result_data['tradeNo'].';orderInfo:'.$result_data['orderInfo'];
+        switch ( $get_status ){
+            case 'success':
+                $order_status = 'processing';
+                break;
+            case 'pending':
+                $order_status = 'on-hold';
+                break;
+            case 'fail':
+                $order_status = 'failed';
+                break;
+            default:
+                $order_status = 'pending';
+                break;
+        }
+
+        if( ! $order->has_status( $this->confirm_status ) ){
+
+            $note = '<b>Transaction No</b> : '.$result_data['tradeNo'] ."<br/>";
+            $note .= '<b>Status</b> : '.$order_status ."<br/>";
+            $note .= '<b>Order Info</b> : '.$result_data['orderInfo'] ;
 
             $order->add_order_note($note."\r\n");
 
@@ -244,11 +240,11 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
             update_post_meta($order->get_id(), 'tradeNo', $result_data['tradeNo']);
 
             // 更新订单
-            $order->update_status($order_state);
+            $order->update_status($order_status);
 
-            $this->logger->debug('change order status: '.$order_state);
+            $this->logger->info('change order status: '.$order_status);
 
-            if( $order_state == 'processing' ){
+            if( $order_status == 'processing' ){
                 $order->payment_complete(  $result_data['tradeNo']  );
             }
 
@@ -256,13 +252,8 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
     }
 
-    function sanitize_post(){
+    protected function sanitize_post(){
         $data = [];
-        if($_SERVER['REQUEST_METHOD'] == 'POST'){
-            foreach ($_POST as $key => $value){
-                $data[$key] = wc_clean($value);
-            }
-        }
         if($_SERVER['REQUEST_METHOD'] == 'GET'){
             $data['signInfo'] = wc_clean($_GET['signInfo']);
             $data['orderNo'] = wc_clean($_GET['orderNo']);
@@ -277,6 +268,57 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
             $data['message'] = wc_clean($_GET['message']);
         }
         return $data;
+    }
+
+    protected function order_parameter($order){
+
+
+        $order_line  = (array)$order->get_data()['line_items'];
+
+        $goods_details = array();
+        foreach ($order_line as $item) {
+
+            $data = array_values((array)$item);
+            $product = wc_get_product( $data[1]['product_id'] );
+
+            if( empty($product) ){
+                continue;
+            }
+
+            $goods_details[] = [
+                'goodsTitle' => $product->get_name(),
+                'goodsCount' => $data['1']['quantity'],
+                'goodsPrice' => $data['1']['quantity'] > 0 ? sprintf('%.2f', $data['1']['subtotal'] / $data['1']['quantity']) : 0
+            ];
+        }
+
+
+        $customer_ip = $order->get_customer_ip_address();
+        if( empty($customer_ip) ){
+            $customer_ip = \Asiabill\Classes\AsiabillIntegration::clientIP();
+        }
+
+        return array(
+            'customerId' => '',
+            'customerIp' => $customer_ip,
+            'orderNo' => $order->get_id(),
+            'orderAmount' => sprintf('%.2f', $order->get_total()),
+            'orderCurrency' => $order->get_currency(),
+            'goodsDetails' => $goods_details,
+            'paymentMethod' => ASIABILL_METHODS[str_replace('wc_','',$this->id)],
+            'returnUrl' => $order->get_checkout_order_received_url(),
+            'callbackUrl' => get_site_url().'/?wc-api='.$this->id.'_callback' ,
+            'isMobile' => \Asiabill\Classes\AsiabillIntegration::isMobile(),
+            'platform' => 'wordpress',
+            'remark' => '', // 订单备注信息
+            'webSite' => get_site_url()
+        );
+
+
+    }
+
+    protected function api(){
+        return Wc_Asiabill_Api::load_asiabill($this->id);
     }
 
 }

@@ -5,16 +5,16 @@ msgstr ""
 "Project-Id-Version: WooCommerce Asiabill Gateway\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-POT-"
 "Creation-Date: 2021-08-10 15:02+0800\n"
-"POT-Creation-Date: 2021-09-10 14:14+0800\n"
-"PO-Revision-Date: 2021-09-10 14:15+0800\n"
+"POT-Creation-Date: 2022-07-07 14:36+0800\n"
+"PO-Revision-Date: 2022-07-07 14:39+0800\n"
 "Last-Translator: \n"
 "Language-Team: asiabill\n"
 "Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.0\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.1\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 "X-Poedit-KeywordsList: __;_e\n"
 "X-Poedit-Basepath: ..\n"
@@ -39,62 +39,66 @@ msgstr "无法处理此付款，请重试或使用其他方法。"
 
 #: includes/class-wc-asiabill-order-heandler.php:69
 #: includes/class-wc-asiabill-order-heandler.php:74
-msgid "Unable to process this payment, "
-msgstr "无法处理此付款，"
+msgid "Unable to process this payment"
+msgstr "无法处理此付款"
 
-#: includes/class-wc-asiabill-order-heandler.php:86
+#: includes/class-wc-asiabill-order-heandler.php:87
 msgid "System error"
 msgstr "系统错误"
 
-#: includes/class-wc-asiabill-payment.php:36
+#: includes/class-wc-asiabill-payment.php:49
 msgid "Enable/Disable"
 msgstr "启用/关闭"
 
-#: includes/class-wc-asiabill-payment.php:38
+#: includes/class-wc-asiabill-payment.php:51
 msgid "Enable Payment"
 msgstr "启用支付"
 
-#: includes/class-wc-asiabill-payment.php:42
+#: includes/class-wc-asiabill-payment.php:55
 msgid "Payment Method"
 msgstr "支付方式"
 
-#: includes/class-wc-asiabill-payment.php:44
+#: includes/class-wc-asiabill-payment.php:57
 msgid "This controls the title which the user sees during checkout."
 msgstr "它控制用户在签出期间看到的标题。"
 
-#: includes/class-wc-asiabill-payment.php:49
-msgid "Mer No"
-msgstr "商户号"
+#: includes/class-wc-asiabill-payment.php:62
+msgid "Use Test Mode"
+msgstr "使用测试模式"
 
-#: includes/class-wc-asiabill-payment.php:56
+#: includes/class-wc-asiabill-payment.php:68
 msgid "Gateway No"
 msgstr "网关号"
 
-#: includes/class-wc-asiabill-payment.php:63
+#: includes/class-wc-asiabill-payment.php:75
 msgid "Signkey"
 msgstr "密钥"
 
-#: includes/class-wc-asiabill-payment.php:70
-msgid "Use Test Model"
-msgstr "使用测试模式"
+#: includes/class-wc-asiabill-payment.php:82
+msgid "Test Gateway No"
+msgstr "测试网关号"
 
-#: includes/class-wc-asiabill-payment.php:76
+#: includes/class-wc-asiabill-payment.php:89
+msgid "Test Signkey"
+msgstr "测试密钥"
+
+#: includes/class-wc-asiabill-payment.php:96
 msgid "Description"
 msgstr "支付描述"
 
-#: includes/class-wc-asiabill-payment.php:78
+#: includes/class-wc-asiabill-payment.php:98
 msgid "This controls the description which the user sees during checkout."
 msgstr "这控制用户在签出期间看到的描述。"
 
-#: includes/class-wc-asiabill-payment.php:84
+#: includes/class-wc-asiabill-payment.php:104
 msgid "Debug Log"
 msgstr "日志记录"
 
-#: includes/class-wc-asiabill-payment.php:86
+#: includes/class-wc-asiabill-payment.php:106
 msgid "Log Debug Messages"
 msgstr "记录修错消息日志"
 
-#: includes/class-wc-asiabill-payment.php:87
+#: includes/class-wc-asiabill-payment.php:107
 msgid "Debug Path:"
 msgstr "日志目录："
 
@@ -108,53 +112,84 @@ msgstr "日志目录："
 msgid "Show logo"
 msgstr "显示图标"
 
-#: methods/class_asiabill_creditcard.php:41
-msgid "Inline Credit Card Form"
-msgstr "内嵌信用卡表单"
+#: methods/class_asiabill_creditcard.php:38
+msgid "Checkout mode"
+msgstr "支付模式"
 
-#: methods/class_asiabill_creditcard.php:46
+#: methods/class_asiabill_creditcard.php:43
+msgid "In-page Checkout"
+msgstr "内嵌支付"
+
+#: methods/class_asiabill_creditcard.php:44
+msgid "Hosted Payment Page"
+msgstr "托管支付"
+
+#: methods/class_asiabill_creditcard.php:48
+msgid "Form style"
+msgstr "内嵌样式"
+
+#: methods/class_asiabill_creditcard.php:53
+msgid "One row"
+msgstr "一行"
+
+#: methods/class_asiabill_creditcard.php:54
+msgid "Two rows"
+msgstr "两行"
+
+#: methods/class_asiabill_creditcard.php:58
 msgid "Saved Cards"
 msgstr "保存卡记录"
 
-#: methods/class_asiabill_creditcard.php:47
+#: methods/class_asiabill_creditcard.php:59
 msgid "Enable Payment via Saved Cards"
 msgstr "用已保存的银行卡付款"
 
-#: methods/class_asiabill_creditcard.php:53
+#: methods/class_asiabill_creditcard.php:65
 msgid "Visa"
 msgstr "Visa"
 
-#: methods/class_asiabill_creditcard.php:58
+#: methods/class_asiabill_creditcard.php:70
 msgid "MasterCard"
 msgstr "MasterCard"
 
-#: methods/class_asiabill_creditcard.php:63
+#: methods/class_asiabill_creditcard.php:75
 msgid "JCB"
 msgstr "JCB"
 
-#: methods/class_asiabill_creditcard.php:68
+#: methods/class_asiabill_creditcard.php:80
 msgid "American Express"
 msgstr "American Express"
 
-#: methods/class_asiabill_creditcard.php:73
+#: methods/class_asiabill_creditcard.php:85
 msgid "Discover"
 msgstr "Discover"
 
-#: methods/class_asiabill_creditcard.php:78
+#: methods/class_asiabill_creditcard.php:90
 msgid "Diners"
 msgstr "Diners"
 
-#: methods/class_asiabill_creditcard.php:94
+#: methods/class_asiabill_creditcard.php:106
 msgid "New payment methods can only be added during checkout"
 msgstr "新的付款方式只能在结账时添加"
 
-#: methods/class_asiabill_creditcard.php:183
+#: methods/class_asiabill_creditcard.php:210
 msgid "Invalid payment method"
 msgstr "无效的支付方式"
 
-#: methods/class_asiabill_creditcard.php:295
+#: methods/class_asiabill_creditcard.php:312
+#, php-format
+msgid "%1$s ending in %2$s"
+msgstr "%1$s ending in %2$s"
+
+#: methods/class_asiabill_creditcard.php:342
 msgid "Save Card."
 msgstr "保存卡。"
+
+#~ msgid "Mer No"
+#~ msgstr "商户号"
+
+#~ msgid "Inline Credit Card Form"
+#~ msgstr "内嵌信用卡表单"
 
 #~ msgid "and more ..."
 #~ msgstr "更多..."

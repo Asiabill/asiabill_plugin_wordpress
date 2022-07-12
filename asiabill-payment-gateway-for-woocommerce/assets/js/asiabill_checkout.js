@@ -1,20 +1,8 @@
 jQuery( function( $ ) {
     'use strict';
 
-    function getCookie (name) {
-        let strcookie = document.cookie;
-        let arrcookie = strcookie.split("; ");
-        for ( var i = 0; i < arrcookie.length; i++) {
-            var arr = arrcookie[i].split("=");
-            if (arr[0] == name){
-                return arr[1];
-            }
-        }
-        return "";
-    }
-
     try {
-        var ab = AsiabillPay(getCookie('AsiabillSessionToken'));
+        var ab = AsiabillPay(wc_asiabill_params.token);
     }catch( error ) {
         console.log( error );
         return;
@@ -25,7 +13,6 @@ jQuery( function( $ ) {
         is_init : false,
         form : null,
         checkPage : wc_asiabill_params.checkoutPayPage,
-        card_error : $('#asiabill-card-error'),
 
         init : function () {
 
@@ -46,8 +33,7 @@ jQuery( function( $ ) {
                 formId: 'asiabill-card',
                 formWrapperId: 'asiabill-card-element',
                 frameId: 'asiabill-card-frame',
-                mode: wc_asiabill_params.mode,
-                customerId: wc_asiabill_params.customer_id,
+                customerId: '',
                 autoValidate:false,
                 layout: wc_asiabill_params.layout
             }).then((res) => {
@@ -67,13 +53,6 @@ jQuery( function( $ ) {
             if( this.checkPage === '1' ){
                 var billing = wc_asiabill_params.billing;
             }else {
-                let customerObj = {
-                    description: '',
-                    email: $( '#billing_email' ).val(),
-                    firstName: $( '#billing_first_name' ).val(),
-                    lastName: $( '#billing_last_name' ).val(),
-                    phone: $( '#billing_phone' ).val()
-                };
 
                 var billing = {
                     "address": {
@@ -84,10 +63,10 @@ jQuery( function( $ ) {
                         "postalCode": $( '#billing_postcode' ).val(),
                         "state": $( '#billing_state' ).val()
                     },
-                    "email": customerObj.email,
-                    "firstName": customerObj.firstName,
-                    "lastName": customerObj.lastName ,
-                    "phone": customerObj.phone
+                    "email": $( '#billing_email' ).val(),
+                    "firstName": $( '#billing_first_name' ).val(),
+                    "lastName": $( '#billing_last_name' ).val() ,
+                    "phone": $( '#billing_phone' ).val()
                 };
             }
 
@@ -100,8 +79,7 @@ jQuery( function( $ ) {
                     "cardSecurityCode": "",
                     "issuingBank": ""
                 },
-                //"customerId": wc_asiabill_params.customer_id,
-                //"signInfo": ''
+                "customerId": '',
             };
 
             this.errorMessage('');
@@ -118,7 +96,7 @@ jQuery( function( $ ) {
                     // 使用卡支付
                     $( '.asiabill-payment' ).remove();
                     ab.confirmPaymentMethod({
-                        apikey: getCookie('AsiabillSessionToken'),
+                        apikey: wc_asiabill_params.token,
                         trnxDetail: paymentMethodObj
                     }).then((result) => {
                         if( result.data.code === "0" ){
@@ -150,9 +128,9 @@ jQuery( function( $ ) {
 
         errorMessage : function (message = ''){
             if( message.trim() !== '' ){
-                this.card_error.html(message).removeClass('hide');
+                $('#asiabill-card-error').html(message).removeClass('hide');
             }else{
-                this.card_error.html('').addClass('hide');
+                $('#asiabill-card-error').html('').addClass('hide');
             }
         }
 

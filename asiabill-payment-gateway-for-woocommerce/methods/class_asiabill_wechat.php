@@ -5,7 +5,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Wechat extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Wechat Pay';
+    var $method_title       = 'AsiaBill Wechat Pay';
     var $method_description = '微信支付';
     var $logger;
 

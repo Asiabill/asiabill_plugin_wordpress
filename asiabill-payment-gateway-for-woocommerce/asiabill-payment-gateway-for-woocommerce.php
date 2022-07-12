@@ -1,12 +1,12 @@
 <?php
 /**
- * Plugin Name: Asiabill Payment Gateway for WooCommerce
+ * Plugin Name: AsiaBill Payment Gateway for WooCommerce
  * Plugin URI: https://en.asiabill.com
  * Description: Take credit/debit card and other payment methods on your store using Asiabill.
- * Version: 1.1.9
+ * Version: 1.2.0
  * Tested up to: 5.8
  * Required PHP version: 7.1
- * Author: Asiabill
+ * Author: AsiaBill
  * Author URI: https://www.asiabill.com
  * License: GPLv3
  * License URI: https://www.gnu.org/licenses/gpl-3.0.zh-cn.html
@@ -22,7 +22,7 @@ if (! defined ( 'ASIABILL_OL_PAYMENT' )) {
     return;
 }
 
-const ASIABILL_OL_PAYMENT_VERSION = '1.1.9';
+const ASIABILL_OL_PAYMENT_VERSION = '1.2.0';
 define('ASIABILL_PAYMENT_DIR',rtrim(plugin_dir_path(__FILE__),'/'));
 define('ASIABILL_PAYMENT_URL',rtrim(plugin_dir_url(__FILE__),'/'));
 const ASIABILL_METHODS = [
@@ -71,12 +71,12 @@ function asiabill_add_gateway($methods){
 
 add_action( 'plugins_loaded', 'woocommerce_asiabill_includes' );
 function woocommerce_asiabill_includes(){
+    require_once ASIABILL_PAYMENT_DIR . '/includes/classes/AsiabillIntegration.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-payment-token.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-customer.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-api.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-logger.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-payment.php';
-    require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-gateway.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-order-heandler.php';
 }
 

@@ -35,6 +35,7 @@ class Wc_Asiabill_Payment_Token
                     }
                 }
 
+
                 foreach ( $payment_methods as $method ) {
                     if( isset($method['card']) && ! in_array( $method['customerPaymentMethodId'], $stored_tokens) ) {
                         $token = new WC_Payment_Token_CC();
@@ -42,8 +43,8 @@ class Wc_Asiabill_Payment_Token
                         $token->set_gateway_id( $gateway_id );
                         $token->set_card_type( strtolower( $method['card']['brand'] ) );
                         $token->set_last4( $method['card']['last4'] );
-                        $token->set_expiry_month( $method['card']['cardExpireMonth'] );
-                        $token->set_expiry_year( $method['card']['cardExpireYear'] );
+                        $token->set_expiry_month( '00' );
+                        $token->set_expiry_year( '0000' );
 
                         $token->set_user_id( $customer_id );
                         $token->save();

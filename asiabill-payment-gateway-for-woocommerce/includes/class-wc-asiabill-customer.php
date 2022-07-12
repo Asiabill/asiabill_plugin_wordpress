@@ -60,7 +60,6 @@ class Wc_Asiabill_Customer
         $this->id = '';
     }
 
-
     public static function dump_customer(){
         delete_metadata('user',0,'wp_'.self::$mate_key,'',true);
     }
@@ -69,19 +68,22 @@ class Wc_Asiabill_Customer
 
         $methods = get_transient( 'asiabill_method_' . $this->get_id() );
 
-        if( empty($methods) ) $methods = false;
+        if( $this->id == ''  ) $this->clear_cache();
 
-        if( $this->id == ''  )$this->clear_cache();
+        if( $this->id != '' && empty($methods)){
 
-        if( $this->id != '' &&  $methods === false ){
-            $settings = get_option( 'woocommerce_'.$gateway_id.'_settings' );
-            $api = Wc_Asiabill_Api::get_api_v3($settings['use_test_model'],'payment_methods/list/'.$this->id);
-            $response = Wc_Asiabill_Api::request([],$api,'GET',true);
-            if( isset($response['code']) && $response['code'] == '0' ){
+            $response = Wc_Asiabill_Api::load_asiabill($gateway_id)->request('paymentMethods_list',['path'=> ['customerId' => $this->id]]);
+
+            if( isset($response['code']) && $response['code'] == '00000' ){
                 $methods = $response['data'];
             }
             set_transient( 'asiabill_method_' . $this->get_id(), $methods, DAY_IN_SECONDS );
         }
+
+        if( $methods === false ){
+            return [];
+        }
+
         return $methods;
 
     }
@@ -91,9 +93,7 @@ class Wc_Asiabill_Customer
         $methods = get_transient( 'asiabill_method_' . $this->get_id() );
         $method = [];
         if( $methods === false || $methods === '' ){
-            $settings = get_option( 'woocommerce_'.$gateway_id.'_settings' );
-            $api = Wc_Asiabill_Api::get_api_v3($settings['use_test_model'],'payment_methods/'.$method_id);
-            $response = Wc_Asiabill_Api::request([],$api,'GET',true);
+            $response = Wc_Asiabill_Api::load_asiabill($gateway_id)->request('paymentMethods_query',['path'=>['customerPaymentMethodId'=>$method_id]]);
             if( isset($response['code']) && $response['code'] == '0' ){
                 $method = $response['data'];
             }
@@ -107,17 +107,11 @@ class Wc_Asiabill_Customer
     }
 
     public function update_payment_method($gateway_id,$method){
-        $settings = get_option( 'woocommerce_'.$gateway_id.'_settings' );
-        $api = Wc_Asiabill_Api::get_api_v3($settings['use_test_model'],'payment_methods/update');
-        $response = Wc_Asiabill_Api::request($method,$api,'POST',true);
-        return $response;
+        return Wc_Asiabill_Api::load_asiabill($gateway_id)->request('paymentMethods_update',['body'=>$method]);
     }
 
-
     public function delete_payment_methods($payment_method_id){
-        $settings = get_option( 'woocommerce_asiabill_creditcard_settings' );
-        $api = Wc_Asiabill_Api::get_api_v3($settings['use_test_model'],'payment_methods/'.$payment_method_id.'/detach');
-        Wc_Asiabill_Api::request([],$api,'GET',true);
+        Wc_Asiabill_Api::load_asiabill('wc_asiabill_creditcard')->request('paymentMethods_detach',['path'=>['customerPaymentMethodId'=>$payment_method_id] ]);
         $this->clear_cache();
     }
 

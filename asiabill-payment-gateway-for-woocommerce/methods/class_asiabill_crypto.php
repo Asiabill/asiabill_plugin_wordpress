@@ -5,7 +5,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Crypto extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Crypto Payment';
+    var $method_title       = 'AsiaBill Crypto Payment';
     var $method_description = 'Crypto 加密货币';
     var $logger;
 

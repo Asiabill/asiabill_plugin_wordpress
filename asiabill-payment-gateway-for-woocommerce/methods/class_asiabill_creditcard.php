@@ -4,20 +4,17 @@ if (! defined ( 'ABSPATH' ))
 
 class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
-    var $id;
-    var $method_title       = 'Asiabill Credit Card Payment';
-    var $method_description = 'Credit Card 信用卡支付';
-    var $logger;
-    var $is_inline;
-    var $test;
+    public $id;
+    public $method_title       = 'AsiaBill Credit Card Payment';
+    public $method_description = 'Credit Card 信用卡支付';
+    protected $is_inline;
 
 	public function __construct() {
 
 	    parent::__construct('wc_asiabill_creditcard');
 
-        $this->is_inline = $this->get_option('inline')?:'no';
-        $this->has_fields = $this->is_inline == 'yes'?true:false;
-        $this->test = $this->get_option('use_test_model');
+        $this->is_inline = $this->get_option('checkout_mode') === '1'?'yes':'no';
+        $this->has_fields = $this->is_inline == 'yes';
         $this->supports = [
             'products',
         ];
@@ -37,10 +34,25 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         parent::init_form_fields();
         $this->form_fields['title']['default'] = 'Credit Card';
 
-        $this->form_fields['inline'] = array(
-            'title' => __ ( 'Inline Credit Card Form', 'asiabill' ),
-            'type' => 'checkbox',
-            'default' => 'yes'
+        $this->form_fields['checkout_mode'] = array(
+            'title' => __ ( 'Checkout mode', 'asiabill' ),
+            'type' => 'select',
+            'default' => '1',
+            'desc_tip'    => true,
+            'options'     => [
+                '1' => __( 'In-page Checkout', 'asiabill' ),
+                '2'  => __( 'Hosted Payment Page', 'asiabill' ),
+            ],
+        );
+        $this->form_fields['form_style'] = array(
+            'title' => __ ( 'Form style', 'asiabill' ),
+            'type' => 'select',
+            'default' => 'inner',
+            'desc_tip'    => true,
+            'options'     => [
+                'inner' => __( 'One row', 'asiabill' ),
+                'block'  => __( 'Two rows', 'asiabill' ),
+            ],
         );
         $this->form_fields['save_cards'] = array(
             'title' => __ ( 'Saved Cards', 'asiabill' ),
@@ -138,29 +150,12 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         }
 
         $order = new WC_Order ( $order_id );
-        $gateway = new Wc_Asiabill_Gateway($order,$this->id);
         $customer = new Wc_Asiabill_Customer(get_current_user_id());
 
-        $save_card = isset($_POST['wc-'.$this->id.'-new-payment-method'])? true: false;
-        $use_token = ( isset($_POST['wc-'.$this->id.'-payment-token']) && $_POST['wc-'.$this->id.'-payment-token'] != 'new' )? true: false;
-        $new_card = isset($_POST['asiabill_payment'])? true: false;
+        $save_card = isset($_POST['wc-'.$this->id.'-new-payment-method']);
+        $use_token = isset($_POST['wc-'.$this->id.'-payment-token']) && $_POST['wc-'.$this->id.'-payment-token'] != 'new';
+        $new_card = isset($_POST['asiabill_payment']);
 
-        // 创建Asiabill客服id
-        if( $save_card && !$customer->has_customer() ){
-            $request_data = $gateway->get_billing();
-            $request_data['description'] = '';
-            unset($request_data['address']);
-            // 获取接口api
-            $api = Wc_Asiabill_Api::get_api_v3($this->test,'customers');
-            $response = Wc_Asiabill_Api::request($request_data,$api,'POST',true);
-            $this->logger->info('create customer: '.json_encode($response));
-            if( $response['code'] == '0' ){
-                $customer->create_customer($response['data']['customerId']);
-            }else{
-                $this->logger->debug('create customer error: '.$response['message']);
-                throw new Exception($response['message']);
-            }
-        }
 
         $payment_method_id = '';
         // token id 支付
@@ -169,12 +164,44 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
             $wc_token = WC_Payment_Tokens::get( $token_id );
             $wc_token->set_default('true');
             $payment_method_id = $wc_token->get_token();
-            $gateway->check_token_method($payment_method_id);
+
+            $payment_method = $customer->get_payment_method($this->id,$payment_method_id);
+
+            $billing_address = $this->billing_address($order);
+            if($billing_address !== $payment_method['billingDetail']){
+                $response = $customer->update_payment_method($this->id,[
+                    'billingDetail' => $billing_address,
+                    'customerPaymentMethodId' => $payment_method_id
+                ]);
+                $this->logger->info('update payment method : '.json_encode($response));
+            }
+
             $wc_token->save();
         }
         // 新卡号支付
         else if( $new_card ){
             $payment_method_id = sanitize_text_field($_POST['asiabill_payment']);
+        }
+
+
+        // 创建AsiaBill id
+        if( $save_card && !$customer->has_customer() ){
+
+            $user = new WP_User(get_current_user_id());
+
+            $response = $this->api()->request('customers',['body'=>[
+                'description' => 'wordpress customer',
+                'email' => $user->user_email,
+                'firstName' => $user->user_firstname,
+                'lastName' => $user->user_lastname,
+                'phone' => ''
+            ]]);
+
+            $this->logger->info('create customer response : '.json_encode($response));
+
+            if( $response['code'] == '00000' ){
+                $customer->create_customer($response['data']['customerId']);
+            }
         }
 
         // 无效的method_id
@@ -183,35 +210,50 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
             throw new Exception(  __ ( 'Invalid payment method', 'asiabill' ) );
         }
 
-        // 确认扣款
-        $response = $gateway->confirm_charge($payment_method_id);
+        $parameter = $this->order_parameter($order);
+        $parameter['customerPaymentMethodId'] = $payment_method_id;
+        $parameter['shipping'] = [
+            'address' => [
+                'line1' => $order->get_shipping_address_1(),
+                'line2' => $order->get_shipping_address_2(),
+                'city' => $order->get_shipping_city(),
+                'country' => $order->get_shipping_country(),
+                'state' => $order->get_shipping_state(),
+                'postCode' => $order->get_shipping_postcode()
+            ],
+            'email' => $order->get_billing_email(),
+            'firstName' => $order->get_shipping_first_name(),
+            'lastName' => $order->get_shipping_last_name(),
+            'phone' => $order->get_shipping_phone(),
+        ];
 
-        // 重新获取token
-        $this->save_token($gateway);
+        $this->logger->info('confirm charge : '.json_encode($parameter));
+        $response = $this->api()->request('confirmCharge',['body' => $parameter]);
+        $this->logger->info('confirm response : '.json_encode($response));
 
         if( is_array($response) && isset($response['code']) ){
-            if( $response['code'] == '0' ){
+
+            if( $response['code'] == '00000' ){
 
                 // 3D交易
-                if( $response['data']['threeDsType'] == '1' &&  $response['data']['threeDsUrl'] != null ){
-                    $this->logger->info('redirect to 3d page');
-                    $redirect = $response['data']['threeDsUrl'];
+                if( !empty($response['data']['redirectUrl']) ){
+                    $redirect = $response['data']['redirectUrl'];
                 }
                 // 成功，待处理
-                elseif( in_array($response['data']['orderStatus'],['1','-1','-2']) ) {
-                    $this->logger->info('redirect to thank you page');
+                elseif( in_array($response['data']['orderStatus'],['success','pending']) ) {
                     $redirect = $this->get_return_url( $order );
                 }
                 else{
-                    $this->logger->debug('error info ：'.$response['data']['orderInfo']);
                     throw new Exception($response['data']['orderInfo']);
                 }
 
                 // 支付成功，关联客户卡
                 if( $save_card && $new_card && $customer->has_customer() ){
-                    $api = Wc_Asiabill_Api::get_api_v3($this->test,'payment_methods/'.$payment_method_id.'/'.$customer->get_id().'/attach');
-                    $response = Wc_Asiabill_Api::request([],$api,'GET',true);
-                    $this->logger->info('attach method:'.json_encode($response));
+                    $response = $this->api()->request('paymentMethods_attach',['path' => [
+                        'customerPaymentMethodId' => $payment_method_id,
+                        'customerId' => $customer->get_id()
+                    ]]);
+                    $this->logger->info('payment method attach response :'.json_encode($response));
                     // 清除客户缓存记录
                     $customer->clear_cache();
                 }
@@ -222,6 +264,10 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
                     }
                 }
 
+                if( $order->get_status() !== 'processing' ){
+                    $this->change_order_status($response['data']);
+                }
+
                 return array (
                     'result' => 'success',
                     'redirect' =>  $redirect
@@ -229,7 +275,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
             }
             else{
-                $this->logger->debug('confirm error:'.$response['message']);
+
                 throw new Exception($response['message']);
             }
         }
@@ -245,31 +291,45 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
     public function elements_form() {
 
-        $gateway = new Wc_Asiabill_Gateway('',$this->id);
-
-        $session_token = $this->save_token($gateway);
-
-        if( $session_token ){
-
-            // 保存的卡
-            if( is_user_logged_in() && is_checkout() && $this->get_option('save_cards') == 'yes' ){
-                $this->saved_payment_methods();
-            }
-
-            echo '<div id="wc-'.esc_attr( $this->id ).'-cc-form" class="wc-credit-card-form wc-payment-form" style="background:transparent;margin-top:1em">
-            <div id="asiabill-card" class="wc-asiabill-elements-field">
-                <div id="asiabill-card-element" class="ab-elemen" style="max-height: 44px;margin: 5px 0;"></div>
-                <div id="asiabill-card-error" class="woocommerce-error hide" role="alert"></div>
-            </div>
-            </div>';
-
-            // 保存的卡选项
-            if( is_user_logged_in() && is_checkout() && $this->get_option('save_cards') == 'yes' ){
-                $this->save_payment_method_checkbox();
-            }
-
+        // 保存的卡
+        if( is_user_logged_in() && is_checkout() && $this->get_option('save_cards') == 'yes' && $this->get_tokens() ){
+            $this->saved_payment_methods();
         }
 
+        echo '<div id="wc-'.esc_attr( $this->id ).'-cc-form" class="wc-credit-card-form wc-payment-form" style="">
+        <div id="asiabill-card" class="wc-asiabill-elements-field">
+            <div id="asiabill-card-element" class="ab-elemen"></div>
+            <div id="asiabill-card-error" class="woocommerce-error hide" role="alert"></div>
+        </div>
+        </div>';
+
+        // 保存的卡选项
+        if( is_user_logged_in() && is_checkout() && $this->get_option('save_cards') == 'yes' ){
+            $this->save_payment_method_checkbox();
+        }
+
+    }
+
+    public function get_saved_payment_method_option_html( $token ) {
+
+        $display = sprintf(
+            __( '%1$s ending in %2$s', 'woocommerce' ),
+            wc_get_credit_card_type_label( $token->get_card_type() ),
+            $token->get_last4(),
+        );
+
+        $html = sprintf(
+            '<li class="woocommerce-SavedPaymentMethods-token">
+				<input id="wc-%1$s-payment-token-%2$s" type="radio" name="wc-%1$s-payment-token" value="%2$s" style="width:auto;" class="woocommerce-SavedPaymentMethods-tokenInput" %4$s />
+				<label for="wc-%1$s-payment-token-%2$s">%3$s</label>
+			</li>',
+            esc_attr( $this->id ),
+            esc_attr( $token->get_id() ),
+            esc_html( $display ),
+            checked( $token->is_default(), true, false )
+        );
+
+        return apply_filters( 'woocommerce_payment_gateway_get_saved_payment_method_option_html', $html, $token, $this );
     }
 
     public function elements_error($info = ''){
@@ -287,32 +347,15 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         );
     }
 
-    public function save_token($gateway){
-        $response = $gateway->get_token();
-        if( is_array($response) &&  isset($response['code']) ){ /*获取sessionToken成功*/
-            if( $response['code'] == '0' ){
-                setcookie('AsiabillSessionToken',esc_html($response['data']['sessionToken']),(time()+60*25),'/');
-                return $response['data']['sessionToken'];
-            }else{
-                $this->elements_error($response['code'].' '.$response['message']); /*错误信息*/
-            }
-        }else{
-            $this->elements_error($response); /*接口请求失败*/
-        }
-        return null;
-
-    }
-
     public function payment_scripts(){
 
-        if ( 'no' === $this->enabled ) {
+        if ( 'no' === $this->enabled || $this->is_inline != 'yes' ) {
             return;
         }
 
         wp_register_style( 'asiabill_styles', ASIABILL_PAYMENT_URL.'/assets/css/asiabilll.css', [], ASIABILL_OL_PAYMENT_VERSION );
 
-        $src = ($this->test == 'yes'?Wc_Asiabill_Api::SANDBOX:Wc_Asiabill_Api::DOMAIN).'/static/v3/js/AsiabillPayment.min.js';
-        wp_enqueue_script('asiabill_payment', $src, [], ASIABILL_OL_PAYMENT_VERSION, true);
+        wp_enqueue_script('asiabill_payment', $this->api()->getJsScript(), [], ASIABILL_OL_PAYMENT_VERSION, true);
 
         wp_enqueue_script('asiabill_checkout', ASIABILL_PAYMENT_URL.'/assets/js/asiabill_checkout.js', ['jquery', 'jquery-payment','asiabill_payment' ], ASIABILL_OL_PAYMENT_VERSION, true);
 
@@ -329,16 +372,14 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
         global $wp;
 
-        $script_params = array(
-            'merNo' => $this->get_option('merchant_no'),
-            'gatewayNo' => $this->get_option('gateway_no'),
-            'mode' => $this->test == 'yes'? 'uat': 'pro',
+        $script_params = [
+            'token' => $this->api()->request('sessionToken'),
             'checkoutPayPage' => is_checkout_pay_page(),
             'billing' => null,
             'layout' => [
-                'pageMode' => 'inner',// 页面风格模式  inner | block
+                'pageMode' => $this->get_option('form_style'),// 页面风格模式  inner | block
                 'style' => [
-                    'frameMaxHeight' => '44', //  iframe最大高度
+                    'frameMaxHeight' => $this->get_option('form_style') === 'inner' ? '47': '104', //  iframe最大高度
                     'input' => [
                         'FontSize' => '14', // 收集页面字体大小
                         'FontFamily' => '',  // 收集页面字体名称
@@ -350,31 +391,15 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
                     ]
                 ],
             ],
-        );
+        ];
 
-        // If we're on the pay page we need to pass stripe.js the address of the order.
 		if ( isset( $_GET['pay_for_order'] ) && 'true' === $_GET['pay_for_order'] ) {
-            $order_id = wc_clean( $wp->query_vars['order-pay'] ); // wpcs: csrf ok, sanitization ok, xss ok.
+
+            $order_id = wc_clean( $wp->query_vars['order-pay'] );
             $order    = wc_get_order( $order_id );
 
             if ( is_a( $order, 'WC_Order' ) ) {
-                $address = array(
-                    'address' => [
-                        'city' => $order->get_billing_city(),
-                        'country' => $order->get_billing_country(),
-                        'line1' => $order->get_billing_address_1(),
-                        'line2' => $order->get_billing_address_2(),
-                        'postalCode' => $order->get_billing_postcode(),
-                        'state' => $order->get_billing_state()
-                    ],
-                    'email' => $order->get_billing_email(),
-                    'firstName' => $order->get_billing_first_name(),
-                    'lastName' => $order->get_billing_last_name(),
-                    'phone' => $order->get_billing_phone()
-
-                );
-
-                $script_params['billing'] = $address;
+                $script_params['billing'] = $this->billing_address($order);
             }
 
         }
@@ -382,41 +407,22 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         return $script_params;
     }
 
-    public function asiabill_callback(){
+    protected function billing_address($order){
+        return [
+            'address' => [
+                'city' => $order->get_billing_city(),
+                'country' => $order->get_billing_country(),
+                'line1' => $order->get_billing_address_1(),
+                'line2' => $order->get_billing_address_2(),
+                'postalCode' => $order->get_billing_postcode(),
+                'state' => $order->get_billing_state()
+            ],
+            'email' => $order->get_billing_email(),
+            'firstName' => $order->get_billing_first_name(),
+            'lastName' => $order->get_billing_last_name(),
+            'phone' => $order->get_billing_phone()
 
-        if( $this->is_inline == 'no' || isset($_POST['notifyType']) ){
-            parent::asiabill_callback();
-        }
-
-        if ( ! isset( $_SERVER['REQUEST_METHOD'] )
-            || ( 'POST' !== $_SERVER['REQUEST_METHOD'] )
-            || ! isset( $_GET['wc-api'] )
-            || ( $this->id.'_callback' !== $_GET['wc-api'] )
-        ) {
-            echo 'success';
-            die();
-        }
-
-        $input = @file_get_contents('php://input');
-
-        $this->logger->debug('Incoming callback json : ' . $input );
-
-        $result_data = json_decode($input,true);
-
-
-        $gateway = new Wc_Asiabill_Gateway('',$this->id);
-        $signInfo = $result_data['signInfo'];
-        unset($result_data['signInfo']);
-
-        if( strtoupper($signInfo) === $gateway->get_v3_sign($result_data) ){
-            $order_status = $this->get_order_status(esc_attr($result_data['orderStatus']));
-            if( $order_status ){
-                $this->change_order_status($result_data,$order_status);
-            }
-        }
-        echo 'success';
-        exit();
-
+        ];
     }
 
 }

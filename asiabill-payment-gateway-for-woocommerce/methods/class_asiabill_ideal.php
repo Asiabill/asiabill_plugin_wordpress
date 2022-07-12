@@ -5,7 +5,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Ideal extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Ideal Payment';
+    var $method_title       = 'AsiaBill Ideal Payment';
     var $method_description = 'Ideal 本地支付';
     var $logger;
 

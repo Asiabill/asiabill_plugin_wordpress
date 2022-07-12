@@ -5,7 +5,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Kakaopay extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Kakao Pay';
+    var $method_title       = 'AsiaBill Kakao Pay';
     var $method_description = 'Kakao Pay (Alipay+™ Partner)';
     var $logger;
 

@@ -6,7 +6,7 @@ class WC_Gateway_Asiabill_Paysafecard extends WC_Asiabill_Payment_Gateway {
 
 
     var $id;
-    var $method_title       = 'Asiabill Paysafecard Payment';
+    var $method_title       = 'AsiaBill Paysafecard Payment';
     var $method_description = 'Paysafecard 本地支付';
     var $logger;
 

@@ -5,7 +5,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Ebanx extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Ebanx Payment';
+    var $method_title       = 'AsiaBill Ebanx Payment';
     var $method_description = 'Ebanx 本地支付';
     var $logger;
 

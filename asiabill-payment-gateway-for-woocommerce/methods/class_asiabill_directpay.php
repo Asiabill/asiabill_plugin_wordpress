@@ -6,7 +6,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Directpay extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Directpay Payment';
+    var $method_title       = 'AsiaBill Directpay Payment';
     var $method_description = 'Directpay 本地支付';
     var $logger;
 

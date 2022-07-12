@@ -3,156 +3,185 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: WooCommerce Asiabill Gateway\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-"
-"POT-Creation-Date: 2021-08-10 15:04+0800\n"
-"PO-Revision-Date: 2021-08-10 15:04+0800\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/woocommerce-POT-"
+"Creation-Date: 2021-08-10 15:02+0800\n"
+"POT-Creation-Date: 2022-07-07 14:36+0800\n"
+"PO-Revision-Date: 2022-07-07 14:39+0800\n"
 "Last-Translator: \n"
 "Language-Team: asiabill\n"
-"Language: "
+"Language: zh_CN\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Poedit 3.0\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
+"X-Generator: Poedit 3.1\n"
 "X-Poedit-SourceCharset: UTF-8\n"
 "X-Poedit-KeywordsList: __;_e\n"
 "X-Poedit-Basepath: ..\n"
 "X-Poedit-SearchPath-0: .\n"
 
-#: asiabill-payment-gateway-for-woocommerce.php:84
+#: asiabill-payment-gateway-for-woocommerce.php:87
 msgid "Settings"
 msgstr ""
 
-#: asiabill-payment-gateway-for-woocommerce.php:101
+#: asiabill-payment-gateway-for-woocommerce.php:104
 msgid "Payment Method :"
 msgstr ""
 
-#: asiabill-payment-gateway-for-woocommerce.php:103
+#: asiabill-payment-gateway-for-woocommerce.php:106
 msgid "Ref No :"
 msgstr ""
 
-#: includes/class-wc-asiabill-order-heandler.php:64
+#: includes/class-wc-asiabill-order-heandler.php:65
 msgid ""
 "Unable to process this payment, please try again or use alternative method."
 msgstr ""
 
-#: includes/class-wc-asiabill-order-heandler.php:68
-#: includes/class-wc-asiabill-order-heandler.php:72
-msgid "Unable to process this payment, "
+#: includes/class-wc-asiabill-order-heandler.php:69
+#: includes/class-wc-asiabill-order-heandler.php:74
+msgid "Unable to process this payment"
 msgstr ""
 
-#: includes/class-wc-asiabill-order-heandler.php:86
+#: includes/class-wc-asiabill-order-heandler.php:87
 msgid "System error"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:38
+#: includes/class-wc-asiabill-payment.php:49
 msgid "Enable/Disable"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:40
+#: includes/class-wc-asiabill-payment.php:51
 msgid "Enable Payment"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:44
+#: includes/class-wc-asiabill-payment.php:55
 msgid "Payment Method"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:46
+#: includes/class-wc-asiabill-payment.php:57
 msgid "This controls the title which the user sees during checkout."
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:51
-msgid "Mer No"
+#: includes/class-wc-asiabill-payment.php:62
+msgid "Use Test Mode"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:58
+#: includes/class-wc-asiabill-payment.php:68
 msgid "Gateway No"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:65
+#: includes/class-wc-asiabill-payment.php:75
 msgid "Signkey"
 msgstr ""
 
-#: includes/class-wc-asiabill-payment.php:72
-msgid "Use Test Model"
-msgstr ""
-
-#: includes/class-wc-asiabill-payment.php:78
-msgid "Description"
-msgstr ""
-
-#: includes/class-wc-asiabill-payment.php:80
-msgid "This controls the description which the user sees during checkout."
-msgstr ""
-
-#: includes/class-wc-asiabill-payment.php:86
-msgid "Debug Log"
-msgstr ""
-
-#: includes/class-wc-asiabill-payment.php:88
-msgid "Log Debug Messages"
+#: includes/class-wc-asiabill-payment.php:82
+msgid "Test Gateway No"
 msgstr ""
 
 #: includes/class-wc-asiabill-payment.php:89
-msgid "Debug Path:"
+msgid "Test Signkey"
 msgstr ""
 
+#: includes/class-wc-asiabill-payment.php:96
+msgid "Description"
+msgstr ""
+
+#: includes/class-wc-asiabill-payment.php:98
+msgid "This controls the description which the user sees during checkout."
+msgstr ""
+
+#: includes/class-wc-asiabill-payment.php:104
+msgid "Debug Log"
+msgstr ""
+
+#: includes/class-wc-asiabill-payment.php:106
+msgid "Log Debug Messages"
+msgstr ""
+
+#: includes/class-wc-asiabill-payment.php:107
+msgid "Debug Path:"
+msgstr "："
+
 #: methods/class_asiabill_ali.php:20 methods/class_asiabill_crypto.php:23
-#: methods/class_asiabill_directpay.php:20 methods/class_asiabill_ebanx.php:24
+#: methods/class_asiabill_directpay.php:21 methods/class_asiabill_ebanx.php:24
 #: methods/class_asiabill_giropay.php:20 methods/class_asiabill_ideal.php:20
-#: methods/class_asiabill_p24.php:20 methods/class_asiabill_paysafecard.php:21
+#: methods/class_asiabill_kakaopay.php:21
+#: methods/class_asiabill_koreacard.php:20 methods/class_asiabill_p24.php:20
+#: methods/class_asiabill_paysafecard.php:21
 #: methods/class_asiabill_wechat.php:20
 msgid "Show logo"
 msgstr ""
 
-#: methods/class_asiabill_creditcard.php:37
-msgid "Inline Credit Card Form"
-msgstr ""
-
-#: methods/class_asiabill_creditcard.php:42
-msgid "Saved Cards"
+#: methods/class_asiabill_creditcard.php:38
+msgid "Checkout mode"
 msgstr ""
 
 #: methods/class_asiabill_creditcard.php:43
-msgid "Enable Payment via Saved Cards"
+msgid "In-page Checkout"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:44
+msgid "Hosted Payment Page"
 msgstr ""
 
 #: methods/class_asiabill_creditcard.php:48
-msgid "Visa"
+msgid "Form style"
 msgstr ""
 
 #: methods/class_asiabill_creditcard.php:53
-msgid "MasterCard"
+msgid "One row"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:54
+msgid "Two rows"
 msgstr ""
 
 #: methods/class_asiabill_creditcard.php:58
+msgid "Saved Cards"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:59
+msgid "Enable Payment via Saved Cards"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:65
+msgid "Visa"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:70
+msgid "MasterCard"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:75
 msgid "JCB"
 msgstr ""
 
-#: methods/class_asiabill_creditcard.php:63
+#: methods/class_asiabill_creditcard.php:80
 msgid "American Express"
 msgstr ""
 
-#: methods/class_asiabill_creditcard.php:68
+#: methods/class_asiabill_creditcard.php:85
 msgid "Discover"
 msgstr ""
 
-#: methods/class_asiabill_creditcard.php:73
+#: methods/class_asiabill_creditcard.php:90
 msgid "Diners"
 msgstr ""
 
-#: methods/class_asiabill_creditcard.php:94
+#: methods/class_asiabill_creditcard.php:106
 msgid "New payment methods can only be added during checkout"
-msgstr "新的付款方式只能在结账时添加"
+msgstr ""
 
-#: methods/class_asiabill_creditcard.php:182
+#: methods/class_asiabill_creditcard.php:210
 msgid "Invalid payment method"
 msgstr ""
 
-#: methods/class_asiabill_creditcard.php:289
+#: methods/class_asiabill_creditcard.php:312
+#, php-format
+msgid "%1$s ending in %2$s"
+msgstr ""
+
+#: methods/class_asiabill_creditcard.php:342
 msgid "Save Card."
 msgstr ""
 
-#: methods/class_asiabill_koreacard.php:28
-msgid "and more ..."
-msgstr ""

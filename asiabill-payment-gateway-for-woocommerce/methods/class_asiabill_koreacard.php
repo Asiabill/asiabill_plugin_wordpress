@@ -5,7 +5,7 @@ if (! defined ( 'ABSPATH' ))
 class WC_Gateway_Asiabill_Koreacard extends WC_Asiabill_Payment_Gateway {
 
     var $id;
-    var $method_title       = 'Asiabill Korea Local cards';
+    var $method_title       = 'AsiaBill Korea Local cards';
     var $method_description = '韩国信用卡支付';
     var $logger;
 
