@@ -7,7 +7,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
     public $icon = array();
     protected $logger;
-    protected $confirm_status = ['processing', 'completed', 'refunded', 'shipping','shipped','close'];
+    protected $confirm_status = ['processing', 'completed', 'refunded', 'shipping','shipped','close','wfocu-pri-order'];
 
     function __construct($id){
 
@@ -16,12 +16,16 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         $this->title = $this->get_option ( 'title' );
         $this->description = $this->get_option ( 'description' );
 
+        $this->supports = [
+            'products',
+            'refunds'
+        ];
+
         // 支付页面
         add_action( 'woocommerce_receipt_'.$this->id, array($this, 'receipt_page'));
 
         // 保存设置
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array ($this,'process_admin_options') );
-        add_action( 'woocommerce_api_'.$this->id.'_callback', array( $this, 'asiabill_callback' ) );
 
         // 加载表单字段
         $this->init_form_fields ();
@@ -112,9 +116,26 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
     }
 
     /**
+     * icon
+     * @return mixed|string|void
+     */
+    public function get_icon(){
+        if( $this->get_option('show_logo') == 'yes' ){
+            $file = str_replace('wc_asiabill_','',$this->id);
+            $img = '<img class="asiabill_gateway_logo" src="'.ASIABILL_PAYMENT_URL.'/assets/images/'. $file .'.png" alt="'. $file .'"/>';
+            return apply_filters( 'woocommerce_gateway_icon', $img, $this->id );
+        }
+    }
+
+    /**
      * 支付字段描述
      */
     function payment_fields(){
+        if( $this->get_option('show_logo') == 'yes' ){
+            $img = '<img id="asiabill_gateway_logo" src="'.ASIABILL_PAYMENT_URL.'/assets/images/alipay.png" alt="alipay"/>';
+            echo  apply_filters( 'woocommerce_gateway_icon', $img, $this->id );
+        }
+
         echo apply_filters( 'wc_'.$this->id.'_description', wpautop( wp_kses_post( $this->description ) ), $this->id );
     }
 
@@ -122,10 +143,11 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
      * 支付请求响应
      * @param int $order_id
      * @return array
+     * @throws Exception
      */
     function process_payment($order_id){
 
-        $order = new WC_Order ( $order_id );
+        $order = wc_get_order( $order_id );
 
         $parameter = $this->order_parameter($order);
 
@@ -154,6 +176,9 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         );
 
         $this->logger->info('checkoutPayment : '.json_encode($parameter));
+
+        update_post_meta($order->get_id(), '_related_number', $parameter['orderNo']);
+
         $res = $this->api()->request('checkoutPayment',array('body' => $parameter));
 
         if( $res['code'] == '0000'){
@@ -167,89 +192,105 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
     }
 
-    /**
-     * 异步回调处理
-     * @return void
-     */
-    function asiabill_callback(){
+    public function process_refund( $order_id, $amount = null, $reason = '' ) {
 
-        if ( ! isset( $_SERVER['REQUEST_METHOD'] )
-            || ( 'POST' !== $_SERVER['REQUEST_METHOD'] )
-            || ! isset( $_GET['wc-api'] )
-            || ( $this->id.'_callback' !== $_GET['wc-api'] )
-        ) {
-            echo 'success';
-            die();
+        $order = wc_get_order( $order_id );
+
+        if ( ! $order )  return false;
+
+        if( $amount <= 0 ) throw new Exception( __( 'There was a problem initiating a refund: This value must be greater than 0.' ) );
+
+        $refund_items = wc_get_orders( array(
+            'type'   => 'shop_order_refund',
+            'parent' => $order_id,
+            'limit'  => -1,
+            'return' => 'ids',
+        ) );
+
+        $refund_id = current($refund_items);
+
+        $refund_type = $amount == $order->get_total() ? '1' : '2';
+
+        $refund_data = [
+            'merTrackNo' => $refund_id,
+            'refundAmount' => $amount,
+            'refundReason' => $reason,
+            'refundType' => $refund_type,
+            'remark' => 'Order #'.$order->get_order_number(),
+            'tradeNo' => $order->get_transaction_id()
+        ];
+
+        $this->logger->info('refund request : '.json_encode($refund_data));
+
+        $res = $this->api()->openapi()->request('refund',['body' => $refund_data]);
+
+        $this->logger->info('refund result : '.json_encode($res));
+
+        if($res['code'] != '0000'){
+            throw new Exception( __( $res['message'] ) );
         }
 
-        $asiabill_api = $this->api();
+        $res['data']['amount'] = $amount;
+        $this->add_refund_note($res['data'],$order);
 
-        $webhook_data = $asiabill_api->getWebhookData();
+        return true;
+    }
 
-        if( !preg_match("/^transaction|pre-authorized/",$webhook_data['type']) ){
-            echo 'success';
-            die();
+    public function process_response($result_data,$order){
+
+        $get_status = $result_data['orderStatus'];
+
+        if( !$order->get_transaction_id() ){
+
+            if( $order->get_meta('_trade_no') !== $result_data['tradeNo']
+                || ( $order->get_status() === 'on-hold' && $get_status !== 'pending' )
+            ){
+
+                $order->add_meta_data('_trade_no',$result_data['tradeNo'],true);
+
+                if( $get_status === 'success' ){
+                    $order->payment_complete(  $result_data['tradeNo'] );
+                    /* translators: transaction id */
+                    $message = sprintf( __( 'AsiaBill payment complete (Ref No: %s)', 'asiabill' ), $result_data['tradeNo'] );
+                    $order->add_order_note( $message );
+                }elseif( $get_status === 'pending' ){
+                    $order->update_status( 'on-hold', sprintf( __( 'AsiaBill payment awaiting : %s.', 'asiabill' ), $result_data['tradeNo'] ) );
+                }elseif( $get_status === 'fail' ){
+                    $localized_message = __( 'AsiaBill payment failed (Ref No: '. $result_data['tradeNo'] .'. Reason: '.$result_data['orderInfo'].')', 'asiabill' );
+                    $order->add_order_note( $localized_message );
+                }
+
+            }
+
+            $order->save();
         }
-
-        $this->logger->info('webhook: ' . json_encode( $webhook_data) );
-
-        if( $asiabill_api->verification() ){
-            $this->change_order_status($webhook_data['data']);
-        }
-
-        echo 'success';
-        die();
 
     }
 
-    protected function change_order_status($result_data){
+    protected function get_order_by_number($number){
+        global $wpdb;
 
-        $order_id = $result_data['orderNo'] ;
-        $order = wc_get_order( $order_id );
-
-        if( ! is_object($order) ){
-            throw new Exception('order is not object !');
+        if ( empty( $number ) ) {
+            return false;
         }
 
-        $get_status = $result_data['tradeStatus'] ?? $result_data['orderStatus'];
+        $order_id = $wpdb->get_var( $wpdb->prepare( "SELECT DISTINCT ID FROM $wpdb->posts as posts LEFT JOIN $wpdb->postmeta as meta ON posts.ID = meta.post_id WHERE meta.meta_value = %s AND meta.meta_key = %s", $number, '_related_number' ) );
 
-        switch ( $get_status ){
-            case 'success':
-                $order_status = 'processing';
-                break;
-            case 'pending':
-                $order_status = 'on-hold';
-                break;
-            case 'fail':
-                $order_status = 'failed';
-                break;
-            default:
-                $order_status = 'pending';
-                break;
+        if ( ! empty( $order_id ) ) {
+            return wc_get_order( $order_id );
         }
 
-        if( ! $order->has_status( $this->confirm_status ) ){
+        return false;
 
-            $note = '<b>Transaction No</b> : '.$result_data['tradeNo'] ."<br/>";
-            $note .= '<b>Status</b> : '.$order_status ."<br/>";
-            $note .= '<b>Order Info</b> : '.$result_data['orderInfo'] ;
+    }
 
-            $order->add_order_note($note."\r\n");
+    protected function add_refund_note($result_data,$order){
 
-            // 交易号
-            update_post_meta($order->get_id(), 'tradeNo', $result_data['tradeNo']);
+        $refund_message = 'Refund ID: <b>'.$result_data['batchNo'].'</b><br>';
+        $refund_message .= 'Amout: <b>'.$result_data['amount'].'</b><br>';
+        $refund_message .= 'Status: <b>'.$result_data['refundStatus'].'</b>';
 
-            // 更新订单
-            $order->update_status($order_status);
-
-            $this->logger->info('change order status: '.$order_status);
-
-            if( $order_status == 'processing' ){
-                $order->payment_complete(  $result_data['tradeNo']  );
-            }
-
-        }
-
+        $order->add_order_note( $refund_message );
     }
 
     protected function sanitize_post(){
@@ -301,13 +342,13 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         return array(
             'customerId' => '',
             'customerIp' => $customer_ip,
-            'orderNo' => $order->get_id(),
+            'orderNo' => $order->get_order_number(),
             'orderAmount' => sprintf('%.2f', $order->get_total()),
             'orderCurrency' => $order->get_currency(),
             'goodsDetails' => $goods_details,
             'paymentMethod' => ASIABILL_METHODS[str_replace('wc_','',$this->id)],
             'returnUrl' => $order->get_checkout_order_received_url(),
-            'callbackUrl' => get_site_url().'/?wc-api='.$this->id.'_callback' ,
+            'callbackUrl' => get_site_url().'/?wc-api=asiabill_callback' ,
             'isMobile' => \Asiabill\Classes\AsiabillIntegration::isMobile(),
             'platform' => 'wordpress',
             'remark' => '', // 订单备注信息
@@ -320,5 +361,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
     protected function api(){
         return Wc_Asiabill_Api::load_asiabill($this->id);
     }
+
+
 
 }

@@ -27,14 +27,6 @@ class WC_Gateway_Asiabill_Ebanx extends WC_Asiabill_Payment_Gateway {
         );
 	}
 
-    public function get_icon(){
-        if( $this->get_option('show_logo') == 'yes' ){
-            $img = '<img id="asiabill_gateway_logo" src="'.ASIABILL_PAYMENT_URL.'/assets/images/ebanx.png" alt="ebanx"/>';
-            return apply_filters( 'woocommerce_gateway_icon', $img, $this->id );
-        }
-    }
-
-
 }
 
 ?>

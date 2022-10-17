@@ -12,7 +12,6 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
         add_action( 'wp', [ $this, 'maybe_process_redirect_order' ] );
     }
 
-
     function maybe_process_redirect_order(){
 
         if ( ! is_order_received_page()
@@ -24,7 +23,7 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
             return;
         }
 
-        $order_id = wc_clean( wp_unslash( $_REQUEST['orderNo'] ) ) ;
+        $order_id = $this->get_order_by_number( wc_clean( wp_unslash( $_REQUEST['orderNo'] ) ) );
 
         if ( empty( $order_id ) ) {
             return;
@@ -41,14 +40,12 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
             return;
         }
 
-        $this->id = $order->get_payment_method();
-
-        $this->logger = new Wc_Asiabill_logger($this->id);
-
-        if ( $order->has_status( [ 'processing', 'completed', 'on-hold' ] ) ) {
-            $this->logger->debug('order is complete');
+        if ( $order->get_transaction_id() ) {
             return;
         }
+
+        $this->id = $order->get_payment_method();
+        $this->logger = new Wc_Asiabill_logger($this->id);
 
         try{
 
@@ -61,11 +58,7 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
 
             if( $this->api()->verification() ){
 
-                if( in_array($this->id,['wc_asiabill_ali','wc_asiabill_wechat']) && $order_state == '-1' ){
-                    $fail_message = __( 'Unable to process this payment, please try again or use alternative method.', 'asiabill' );
-                }
-
-                if( $order_state == '0'  ){
+                if( $order_state == 'fail' ){
                     $fail_message = __( 'Unable to process this payment', 'asiabill').$order_info;
                 }
 
@@ -73,17 +66,13 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
                 $this->logger->debug('verification is Fail');
                 $fail_message = __( 'Unable to process this payment', 'asiabill').$order_info;
             }
-
+            $this->confirm_order($result_data['tradeNo'],$order);
 
             if( $fail_message ){
-                $this->logger->debug('pay for '.$this->id.' status : '.$order_state.' fail : '.$order_info);
+                $this->logger->debug('pay for #'.$this->id.' status : '.$order_state.' fail : '.$order_info);
                 wc_add_notice( $fail_message, 'error' );
                 wp_safe_redirect( $order->get_checkout_payment_url() );
                 die();
-            }
-
-            if( $order->get_status() !== 'processing' ){
-                $this->confirm_order($result_data['tradeNo']);
             }
 
         } catch (\Exception $e){
@@ -98,7 +87,7 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
 
     }
 
-    function confirm_order($trade_no){
+    function confirm_order($trade_no,$order){
         $response = $this->api()->openapi()->request('transactions',['query' => [
             'startTime' => date('Y-m-d').'T00:00:00',
             'endTime' => date('Y-m-d').'T23:59:59',
@@ -107,7 +96,12 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
 
 
         if( $response['code'] == '00000' ){
-            $this->change_order_status($response['data']['list'][0]);
+
+            $result_data = $response['data']['list'][0];
+            $result_data['orderInfo'] = $result_data['tradeInfo'];
+            $result_data['orderStatus'] = $result_data['tradeStatus'];
+
+            $this->process_response($result_data,$order);
         }
 
     }

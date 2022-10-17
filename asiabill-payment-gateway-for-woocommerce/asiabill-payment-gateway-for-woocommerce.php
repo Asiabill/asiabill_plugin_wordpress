@@ -26,7 +26,7 @@ const ASIABILL_OL_PAYMENT_VERSION = '1.2.0';
 define('ASIABILL_PAYMENT_DIR',rtrim(plugin_dir_path(__FILE__),'/'));
 define('ASIABILL_PAYMENT_URL',rtrim(plugin_dir_url(__FILE__),'/'));
 const ASIABILL_METHODS = [
-    'asiabill_ali' => 'Alipay',
+    'asiabill_alipay' => 'Alipay',
     'asiabill_creditcard' => 'Credit Card',
     'asiabill_crypto' => 'CryptoPayment',
     'asiabill_directpay' => 'directpay',
@@ -78,6 +78,7 @@ function woocommerce_asiabill_includes(){
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-logger.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-payment.php';
     require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-order-heandler.php';
+    require_once ASIABILL_PAYMENT_DIR . '/includes/class-wc-asiabill-webhook.php';
 }
 
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'asiabill_creditcard_payment_gateway_plugin_edit_link' );
@@ -94,7 +95,7 @@ function asiabill_creditcard_payment_gateway_plugin_edit_link( $links ){
 add_action( 'woocommerce_admin_order_data_after_order_details', 'asiabill_order_display_admin', 10, 1 );
 function asiabill_order_display_admin($order){
 
-    $method = get_post_meta( $order->get_id(), '_payment_method', true );
+    $method = $order->get_payment_method();
     $method_name = str_replace('wc_','',$method);
     $class_name = 'WC_Gateway_'.ucfirst($method_name);
 
@@ -102,7 +103,7 @@ function asiabill_order_display_admin($order){
         $class = new $class_name;
         if( $method == $class->id ){
             echo  '<p class="form-field form-field-wide"><label>'.__( 'Payment Method :', 'asiabill' ).'</label>'. esc_html($class->method_title) .'</p>';
-            $tradeNo = get_post_meta( $order->get_id(), 'tradeNo', true );
+            $tradeNo = $order->get_transaction_id();
             echo '<p class="form-field form-field-wide"><label>'.__( 'Ref No :', 'asiabill' ).'</label>'. esc_html($tradeNo) .'</p>';
         }
     }

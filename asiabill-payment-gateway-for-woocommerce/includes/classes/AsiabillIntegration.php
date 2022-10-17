@@ -6,7 +6,7 @@ include_once 'AsiabillLogger.php';
 
 class AsiabillIntegration
 {
-    const VERSION = '1.1';
+    const VERSION = '1.5';
     const PAYMENT_LIVE = 'https://safepay.asiabill.com';
     const PAYMENT_TEST = 'https://testpay.asiabill.com';
     const OPENAPI_LIVE = 'https://openapi.asiabill.com/openApi';
@@ -20,7 +20,6 @@ class AsiabillIntegration
     protected $sign_key;
     protected $logger = false;
     protected $default_dir;
-    protected $receive_data = array();
     protected $request_type = array(
         'customers' => '/customers', // 操作客户
         'sessionToken' => '/sessionToken', // 获取sessionToken
@@ -139,7 +138,7 @@ class AsiabillIntegration
     }
 
     function getJsScript(){
-        return $this->payment_url.'/static/v3/js/AsiabillPayment.min.js';
+        return $this->payment_url.'/static/v3/js/AsiabillPayment.min.js?v='.self::VERSION;
     }
 
     /**
@@ -204,12 +203,13 @@ class AsiabillIntegration
                 'orderCurrency' => $_GET['orderCurrency'],
                 'orderInfo' => $_GET['orderInfo'],
                 'orderStatus' => $_GET['orderStatus'],
-                'maskCardNo' => isset( $_GET['maskCardNo'] )?$_GET['maskCardNo']:'' ,
+                'maskCardNo' => isset($_GET['maskCardNo'])?$_GET['maskCardNo']:'',
                 'message' => $_GET['message'],
             );
 
+
             if( $this->isLogger() ){
-                $this->logger->addLog('browser : '.json_encode($data),'result');
+                $this->logger->addLog('browser : '.json_encode($data,JSON_UNESCAPED_UNICODE),'result');
             }
 
             return @$signInfo == strtoupper($this->signInfo($data));
@@ -218,14 +218,18 @@ class AsiabillIntegration
         // webhook 接收验证签名
         if( $_SERVER['REQUEST_METHOD'] == 'POST' ){
 
-            $request_header = getallheaders();
-
+            $request_header = array();
+            foreach ( $_SERVER as $key => $value ){
+                if( substr($key, 0, 5) == 'HTTP_' ){
+                    $request_header[strtolower(substr($key, 5))] = $value;
+                }
+            }
             $data = array(
                 'header' =>  array(
-                    'gateway-no' => @$request_header['Gateway-No'],
-                    'request-time' => @$request_header['Request-Time'],
-                    'request-id' => @$request_header['Request-Id'],
-                    'version' => @$request_header['Version']
+                    'gateway-no' => $this->gateway_no,
+                    'request-time' => @$request_header['request_time'],
+                    'request-id' => @$request_header['request_id'],
+                    'version' => @$request_header['version']
                 ),
                 'body' => $this->getWebhookData()
             );
@@ -233,11 +237,11 @@ class AsiabillIntegration
             $check_sign_info = $this->signInfo($data);
 
             if( $this->isLogger() ){
-                $this->logger->addLog('webhook : '.json_encode($data),'result');
-                $this->logger->addLog('check sign info : '.$request_header['Sign-Info'].' & '.$check_sign_info,'result');
+                $data['header']['sign-info'] = @$request_header['sign_info'];
+                $this->logger->addLog('webhook : '.json_encode($data,JSON_UNESCAPED_UNICODE),'result');
             }
 
-            return @$request_header['Sign-Info'] == strtoupper( $check_sign_info );
+            return @$request_header['sign_info'] == strtoupper( $check_sign_info );
 
         }
 
@@ -248,13 +252,47 @@ class AsiabillIntegration
      * 获取webhook内容
      * @return mixed
      */
-    function getWebhookData()
+    static function getWebhookData()
     {
-        if( empty( $this->receive_data) && $_SERVER['REQUEST_METHOD'] == 'POST' ){
-            $this->receive_data = json_decode(file_get_contents( 'php://input' ),true);
+        return json_decode(file_get_contents( 'php://input' ),true);
+    }
+
+    function buildQuery($result,$flags = 0){
+
+        $data = array(
+            'query' => array(
+                'merNo' => substr($this->gateway_no,0,5),
+                'gatewayNo' => $this->gateway_no,
+                'code' => $result['code'],
+                'message' => $result['message'],
+            )
+        );
+
+        $arr = array(
+            'orderNo',
+            'orderAmount',
+            'tradeNo',
+            'orderCurrency',
+            'orderInfo',
+            'orderStatus',
+            'signInfo',
+        );
+
+        foreach ($arr as $value){
+            if(isset($result['data'][$value])){
+                $data['query'][$value] = $result['data'][$value];
+            }else{
+                $data['query'][$value] = '';
+            }
         }
 
-        return $this->receive_data;
+        $data['query']['signInfo'] = strtoupper($this->signInfo($data));
+
+        if( $flags ){
+            return $data['query'];
+        }
+
+        return http_build_query($data['query']);
     }
 
     private function requestCommon($type,$data)
@@ -352,14 +390,25 @@ class AsiabillIntegration
     {
 
         list($t1, $t2) = explode(' ', microtime());
-        $msectime = (string)sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+        $millisecond = sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
 
         return array(
             'gateway-no' => $this->gateway_no,
-            'request-id' => $msectime.'-'.rand(1,9999),
-            'request-time' => $msectime,
+            'request-id' => $this->uniqueId($millisecond),
+            'request-time' => $millisecond,
             'sign-info' => ''
         );
+    }
+
+    private function uniqueId($millisecond) {
+        mt_srand ( $millisecond );
+        $char_id = strtoupper( md5( uniqid( mt_rand(), true ) ) );
+        $hyphen = chr( 45 ); // "-"
+        return substr( $char_id, 0, 8 ) . $hyphen
+            . substr( $char_id, 8, 4 ) . $hyphen
+            . substr( $char_id, 12, 4 ) . $hyphen
+            . substr( $char_id, 16, 4 ) . $hyphen
+            . substr( $char_id, 20, 12 );
     }
 
     private function handle($uri,$parameters,$method='POST')
@@ -368,7 +417,7 @@ class AsiabillIntegration
 
         if( $this->isLogger() ){
             $this->logger->addLog('request-api : '.$this->url.$uri,'request');
-            $this->logger->addLog('parameters : '.json_encode($parameters),'request');
+            $this->logger->addLog('parameters : '.json_encode($parameters,JSON_UNESCAPED_UNICODE),'request');
         }
 
         $asiabillHttp = new AsiabillHttp($this->url.$uri);
@@ -410,7 +459,7 @@ class AsiabillIntegration
         }
 
         if( isset($data['body']) ){
-            $sign_arr[] = json_encode($data['body']);
+            $sign_arr[] = json_encode($data['body'],JSON_UNESCAPED_UNICODE);
         }
 
         $sign_str = implode('.',array_filter($sign_arr));

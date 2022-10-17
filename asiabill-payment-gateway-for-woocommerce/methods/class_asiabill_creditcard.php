@@ -15,9 +15,6 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
         $this->is_inline = $this->get_option('checkout_mode') === '1'?'yes':'no';
         $this->has_fields = $this->is_inline == 'yes';
-        $this->supports = [
-            'products',
-        ];
 
         if( $this->is_inline == 'yes' ){
             $this->supports[] = 'tokenization';
@@ -136,7 +133,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         $img = '';
         if( count($this->icon) > 0 ){
             foreach ($this->icon as $icon){
-                $img .= '<img id="asiabill_gateway_logo" src="'.ASIABILL_PAYMENT_URL.'/assets/images/'.$icon.'.png" alt="'.$icon.'" />';
+                $img .= '<img class="asiabill_gateway_logo" src="'.ASIABILL_PAYMENT_URL.'/assets/images/'.$icon.'.png" alt="'.$icon.'" />';
             }
         }
 
@@ -212,6 +209,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
         $parameter = $this->order_parameter($order);
         $parameter['customerPaymentMethodId'] = $payment_method_id;
+        $parameter['customerId'] = $customer->get_id();
         $parameter['shipping'] = [
             'address' => [
                 'line1' => $order->get_shipping_address_1(),
@@ -227,23 +225,37 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
             'phone' => $order->get_shipping_phone(),
         ];
 
+
         $this->logger->info('confirm charge : '.json_encode($parameter));
+
+        update_post_meta($order->get_id(), '_related_number', $parameter['orderNo']);
+
         $response = $this->api()->request('confirmCharge',['body' => $parameter]);
+
         $this->logger->info('confirm response : '.json_encode($response));
 
         if( is_array($response) && isset($response['code']) ){
 
+
             if( $response['code'] == '00000' ){
 
-                // 3D交易
+                if( $response['data']['orderStatus'] == 'success' ){
+                    $order->add_meta_data('_asiabill_payment_method_id',$payment_method_id);
+                    $order->add_meta_data('_asiabill_customer_id',$customer->get_id());
+                    $order->save();
+                }
+
+                $this->process_response($response['data'],$order);
+
                 if( !empty($response['data']['redirectUrl']) ){
-                    $redirect = $response['data']['redirectUrl'];
+                    // 3ds
+                    return array (
+                        'result' => 'success',
+                        'redirect' =>  $response['data']['redirectUrl']
+                    );
                 }
-                // 成功，待处理
-                elseif( in_array($response['data']['orderStatus'],['success','pending']) ) {
-                    $redirect = $this->get_return_url( $order );
-                }
-                else{
+
+                if($response['data']['orderStatus'] == 'fail'){
                     throw new Exception($response['data']['orderInfo']);
                 }
 
@@ -258,24 +270,15 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
                     $customer->clear_cache();
                 }
 
-                if( $redirect == $this->get_return_url( $order ) ){
-                    if ( isset( WC()->cart ) ) {
-                        WC()->cart->empty_cart();
-                    }
-                }
-
-                if( $order->get_status() !== 'processing' ){
-                    $this->change_order_status($response['data']);
-                }
+                WC()->cart->empty_cart();
 
                 return array (
                     'result' => 'success',
-                    'redirect' =>  $redirect
+                    'redirect' => $order->get_checkout_order_received_url()
                 );
 
             }
             else{
-
                 throw new Exception($response['message']);
             }
         }
@@ -330,10 +333,6 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
         );
 
         return apply_filters( 'woocommerce_payment_gateway_get_saved_payment_method_option_html', $html, $token, $this );
-    }
-
-    public function elements_error($info = ''){
-        echo '<div class="woocommerce-error">'. esc_html($info) .'</div>';
     }
 
     public function save_payment_method_checkbox() {

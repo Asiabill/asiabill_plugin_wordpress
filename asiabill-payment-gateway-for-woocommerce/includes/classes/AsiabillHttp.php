@@ -43,7 +43,7 @@ class AsiabillHttp
 
         if ($method == 'POST') {
             if( isset($parameters['body']) ){
-                $body = json_encode($parameters['body']);
+                $body = json_encode($parameters['body'],JSON_UNESCAPED_UNICODE);
             }else {
                 $body = '';
             }

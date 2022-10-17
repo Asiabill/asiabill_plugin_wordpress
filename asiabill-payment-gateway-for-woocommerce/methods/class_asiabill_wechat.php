@@ -23,17 +23,6 @@ class WC_Gateway_Asiabill_Wechat extends WC_Asiabill_Payment_Gateway {
         );
 	}
 
-    public function get_icon(){
-        if( $this->get_option('show_logo') == 'yes' ){
-            $img = '<style></style>';
-            $img .= '<img id="asiabill_gateway_logo" src="'.ASIABILL_PAYMENT_URL.'/assets/images/wechat.png" alt="wechat"/>';
-
-            return apply_filters( 'woocommerce_gateway_icon', $img, $this->id );
-
-        }
-    }
-
-
 }
 
 ?>
