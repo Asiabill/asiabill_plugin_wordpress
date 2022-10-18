@@ -36,7 +36,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
     public function admin_options() {
 
-        wp_enqueue_script('ab_admin', ASIABILL_PAYMENT_URL.'/assets/js/ab_admin.js', ['jquery'], MONEYCOLLECT_VERSION, true);
+        wp_enqueue_script('ab_admin', ASIABILL_PAYMENT_URL.'/assets/js/ab_admin.js', ['jquery'], ASIABILL_OL_PAYMENT_VERSION, true);
         wp_localize_script(
             'ab_admin',
             'ab_admin_params',
