@@ -257,7 +257,12 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
                     $order->update_status( 'on-hold', sprintf( __( 'AsiaBill payment awaiting : %s.', 'asiabill' ), $result_data['tradeNo'] ) );
                 }elseif( $get_status === 'fail' ){
                     $localized_message = __( 'AsiaBill payment failed (Ref No: '. $result_data['tradeNo'] .'. Reason: '.$result_data['orderInfo'].')', 'asiabill' );
-                    $order->add_order_note( $localized_message );
+                    if( $order->get_status() === 'on-hold' ){
+                        $order->update_status('pending',$localized_message );
+                    }else{
+                        $order->add_order_note( $localized_message );
+                    }
+
                 }
 
             }

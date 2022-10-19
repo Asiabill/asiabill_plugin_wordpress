@@ -16,15 +16,24 @@ jQuery( function( $ ) {
 
         init : function () {
 
-            this.form = this.checkPage === '1' ? $( '#order_review' ) : $( 'form.woocommerce-checkout' );
+            this.form =  $( 'form.woocommerce-checkout' );
 
-            if( this.checkPage === '1' ){
-                initAsiabillPaymentSdk.createElements();
-            }else{
-                $( document.body ).on( 'updated_checkout', function() {
-                    initAsiabillPaymentSdk.createElements();
-                });
+            if( !this.form.length ){
+                this.form = $( '#order_review' );
             }
+
+            if( !this.form.length ){
+                console.log(this.form);
+                initAsiabillPaymentSdk.errorMessage('The form undefined')
+                return false;
+            }
+
+            if( this.checkPage === 'no' ){
+                initAsiabillPaymentSdk.createElements();
+            }
+            $( document.body ).on( 'updated_checkout', function() {
+                initAsiabillPaymentSdk.createElements();
+            });
 
         },
 
@@ -42,7 +51,10 @@ jQuery( function( $ ) {
                 console.log("initERR", err)
             });
 
-            let btn = $('#place_order');
+
+            let btn = $('#place_order,.vi-wcaio-sidebar-cart-bt-checkout-place_order');
+
+
             btn.on('click',function () {
                 return initAsiabillPaymentSdk.checkoutOrder();
             });
@@ -50,7 +62,7 @@ jQuery( function( $ ) {
 
         checkoutOrder : function () {
 
-            if( this.checkPage === '1' ){
+            if( this.checkPage === 'no' ){
                 var billing = wc_asiabill_params.billing;
             }else {
 
@@ -82,7 +94,7 @@ jQuery( function( $ ) {
                 "customerId": '',
             };
 
-            this.errorMessage('');
+            initAsiabillPaymentSdk.errorMessage('');
 
             if($('#payment_method_wc_asiabill_creditcard').is( ':checked' )){
 
@@ -99,6 +111,9 @@ jQuery( function( $ ) {
                         apikey: wc_asiabill_params.token,
                         trnxDetail: paymentMethodObj
                     }).then((result) => {
+
+
+
                         if( result.data.code === "0" ){
                             // 保存成功
                             initAsiabillPaymentSdk.form.append(
@@ -113,6 +128,9 @@ jQuery( function( $ ) {
                                     .attr( 'name', 'asiabill_check_page' )
                                     .val( initAsiabillPaymentSdk.checkPage )
                             );
+
+                            console.log(initAsiabillPaymentSdk.form);
+
                             initAsiabillPaymentSdk.form.trigger( 'submit' );
                         }
                         else {
@@ -128,6 +146,7 @@ jQuery( function( $ ) {
 
         errorMessage : function (message = ''){
             if( message.trim() !== '' ){
+                $( document.body ).trigger( 'checkout_error',message );
                 $('#asiabill-card-error').html(message).removeClass('hide');
             }else{
                 $('#asiabill-card-error').html('').addClass('hide');

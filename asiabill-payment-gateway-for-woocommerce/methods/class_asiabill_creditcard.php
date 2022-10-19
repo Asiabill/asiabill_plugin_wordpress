@@ -20,9 +20,9 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
             $this->supports[] = 'tokenization';
         }
 
-        if( is_checkout() ){
-            add_action( 'wp_enqueue_scripts', [ $this, 'payment_scripts' ] );
-        }
+
+        add_action( 'wp_enqueue_scripts', [ $this, 'payment_scripts' ] );
+
 
         add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, [ $this, 'process_admin_options' ] );
 	}
@@ -209,7 +209,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
         $parameter = $this->order_parameter($order);
         $parameter['customerPaymentMethodId'] = $payment_method_id;
-        $parameter['customerId'] = $customer->get_id();
+        $parameter['customerId'] = $save_card ? $customer->get_id() : '';
         $parameter['shipping'] = [
             'address' => [
                 'line1' => $order->get_shipping_address_1(),
@@ -373,7 +373,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 
         $script_params = [
             'token' => $this->api()->request('sessionToken'),
-            'checkoutPayPage' => is_checkout_pay_page(),
+            'checkoutPayPage' => ( is_checkout() && empty( $_GET['pay_for_order'] ) ) ? 'yes' : 'no',
             'billing' => null,
             'layout' => [
                 'pageMode' => $this->get_option('form_style'),// 页面风格模式  inner | block

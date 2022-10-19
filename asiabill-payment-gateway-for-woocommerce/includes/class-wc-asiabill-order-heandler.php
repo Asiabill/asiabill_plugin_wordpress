@@ -23,22 +23,17 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
             return;
         }
 
-        $order_id = $this->get_order_by_number( wc_clean( wp_unslash( $_REQUEST['orderNo'] ) ) );
+        $order = $this->get_order_by_number( wc_clean( wp_unslash( $_REQUEST['orderNo'] ) ) );
 
-        if ( empty( $order_id ) ) {
+
+        if (  ! is_object( $order )  ) {
             return;
         }
 
-        $this->process_redirect_payment( $order_id );
+        $this->process_redirect_payment( $order );
     }
 
-    function process_redirect_payment( $order_id ){
-
-        $order = wc_get_order( $order_id );
-
-        if ( ! is_object( $order ) ) {
-            return;
-        }
+    function process_redirect_payment( $order ){
 
         if ( $order->get_transaction_id() ) {
             return;
@@ -88,12 +83,12 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
     }
 
     function confirm_order($trade_no,$order){
+
         $response = $this->api()->openapi()->request('transactions',['query' => [
             'startTime' => date('Y-m-d').'T00:00:00',
             'endTime' => date('Y-m-d').'T23:59:59',
             'tradeNo' => $trade_no
         ]]);
-
 
         if( $response['code'] == '00000' ){
 

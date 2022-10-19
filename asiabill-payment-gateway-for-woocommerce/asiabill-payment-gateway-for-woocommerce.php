@@ -22,7 +22,7 @@ if (! defined ( 'ASIABILL_OL_PAYMENT' )) {
     return;
 }
 
-const ASIABILL_OL_PAYMENT_VERSION = '1.2.0';
+const ASIABILL_OL_PAYMENT_VERSION = '1.2.1';
 define('ASIABILL_PAYMENT_DIR',rtrim(plugin_dir_path(__FILE__),'/'));
 define('ASIABILL_PAYMENT_URL',rtrim(plugin_dir_url(__FILE__),'/'));
 const ASIABILL_METHODS = [

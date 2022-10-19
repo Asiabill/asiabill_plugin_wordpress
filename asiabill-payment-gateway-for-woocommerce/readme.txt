@@ -4,7 +4,7 @@ Donate link: https://en.asiabill.com/
 Tags: AsiaBill, credit card, bitcoin, cryptocurrencies, crypto, payment gateway, payment request, sofort, giropay, p24, paysafecard, apple pay, google pay, alipay, wechat pay, 支付宝, 微信支付, 收款, 支付, USD, CNY
 Requires at least: 4.7
 Tested up to: 5.8
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 Requires PHP: 7.1
 License: GPLv3
 License URI: https://www.gnu.org/licenses/gpl-3.0.zh-cn.html
@@ -34,6 +34,9 @@ https://en.asiabill.com/contact
 4. You can keep track of the transaction state changes as well as all the other payment information for each order in this page.
 
 == Changelog ==
+= 1.2.1 =
+* Adaptation woocommerce cart all in one
+
 = 1.2.0 =
 * Upgrade the new API interface
 
