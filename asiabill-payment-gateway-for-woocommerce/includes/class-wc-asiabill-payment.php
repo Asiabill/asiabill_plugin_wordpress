@@ -18,7 +18,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
 
         $this->supports = [
             'products',
-            'refunds'
+            //'refunds'
         ];
 
         // 支付页面
@@ -152,15 +152,14 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         $parameter = $this->order_parameter($order);
 
         $parameter['deliveryAddress'] = array(
-            'address' => $order->get_shipping_address_1().' '.$order->get_shipping_address_2(),
-            'city' => $order->get_shipping_city(),
-            'country' => $order->get_shipping_country(),
-            'email' => $order->get_billing_email(),
-            'firstName' => $order->get_shipping_first_name(),
-            'lastName' => $order->get_shipping_last_name(),
-            'phone' => $order->get_shipping_phone(),
-            'state' => $order->get_shipping_state(),
-            'zip' => $order->get_shipping_postcode()
+            'shipAddress' => $order->get_shipping_address_1().' '.$order->get_shipping_address_2(),
+            'shipCity' => $order->get_shipping_city(),
+            'shipCountry' => $order->get_shipping_country(),
+            'shipFirstName' => $order->get_shipping_first_name(),
+            'shipLastName' => $order->get_shipping_last_name(),
+            'shipPhone' => $order->get_shipping_phone(),
+            'shipState' => $order->get_shipping_state(),
+            'shipZip' => $order->get_shipping_postcode()
         );
 
         $parameter['billingAddress'] = array(
@@ -178,7 +177,7 @@ abstract class WC_Asiabill_Payment_Gateway extends WC_Payment_Gateway_CC {
         $this->logger->info('checkoutPayment : '.json_encode($parameter));
 
         update_post_meta($order->get_id(), '_related_number', $parameter['orderNo']);
-
+        
         $res = $this->api()->request('checkoutPayment',array('body' => $parameter));
 
         if( $res['code'] == '0000'){

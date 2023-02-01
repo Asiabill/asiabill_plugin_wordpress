@@ -10,13 +10,16 @@ class AsiabillHttp
         "Content-type" => "application/json;charset=UTF-8",
     ];
 
-    protected $sslVersion = false;
+    protected $sslVersion = true;
     protected $timeout = 30;
 
     private $response_info;
 
     function __construct($url)
     {
+        if( $_SERVER['SERVER_ADDR'] == '::1' || $_SERVER['SERVER_ADDR'] == '127.0.0.1' ){
+            $this->sslVersion = false;
+        }
         $this->ch = curl_init($url);
     }
 
@@ -32,7 +35,7 @@ class AsiabillHttp
         curl_setopt($this->ch, $name, $value);
     }
 
-    function request( array $parameters, $method )
+    function request( $parameters, $method )
     {
 
         if( isset($parameters['header']) ){

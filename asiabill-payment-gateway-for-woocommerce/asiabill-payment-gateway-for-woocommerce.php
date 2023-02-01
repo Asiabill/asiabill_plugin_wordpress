@@ -3,7 +3,7 @@
  * Plugin Name: AsiaBill Payment Gateway for WooCommerce
  * Plugin URI: https://en.asiabill.com
  * Description: Take credit/debit card and other payment methods on your store using Asiabill.
- * Version: 1.2.0
+ * Version: 1.2.2
  * Tested up to: 5.8
  * Required PHP version: 7.1
  * Author: AsiaBill
@@ -22,7 +22,7 @@ if (! defined ( 'ASIABILL_OL_PAYMENT' )) {
     return;
 }
 
-const ASIABILL_OL_PAYMENT_VERSION = '1.2.1';
+const ASIABILL_OL_PAYMENT_VERSION = '1.2.2';
 define('ASIABILL_PAYMENT_DIR',rtrim(plugin_dir_path(__FILE__),'/'));
 define('ASIABILL_PAYMENT_URL',rtrim(plugin_dir_url(__FILE__),'/'));
 const ASIABILL_METHODS = [

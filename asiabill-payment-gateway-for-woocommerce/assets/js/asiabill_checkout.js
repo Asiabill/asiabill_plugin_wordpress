@@ -111,9 +111,6 @@ jQuery( function( $ ) {
                         apikey: wc_asiabill_params.token,
                         trnxDetail: paymentMethodObj
                     }).then((result) => {
-
-
-
                         if( result.data.code === "0" ){
                             // 保存成功
                             initAsiabillPaymentSdk.form.append(
@@ -128,9 +125,6 @@ jQuery( function( $ ) {
                                     .attr( 'name', 'asiabill_check_page' )
                                     .val( initAsiabillPaymentSdk.checkPage )
                             );
-
-                            console.log(initAsiabillPaymentSdk.form);
-
                             initAsiabillPaymentSdk.form.trigger( 'submit' );
                         }
                         else {

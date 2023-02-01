@@ -31,18 +31,16 @@ class WC_Asiabill_Webhook extends WC_Asiabill_Payment_Gateway
         $order = $this->get_order_by_number($webhook_data['data']['orderNo']);
 
         if( !is_object( $order ) ){
-            echo 'success';
+            echo 'Order Is Null';
             die();
         }
 
         $this->id = $order->get_payment_method();
-
         $asiabill_api = $this->api();
 
         // 校验信息
         if( !$asiabill_api->verification() ){
-            echo 'Verification failed';
-            die();
+            $asiabill_api->response();
         }
 
         $this->logger = new Wc_Asiabill_logger($this->id);
@@ -69,9 +67,7 @@ class WC_Asiabill_Webhook extends WC_Asiabill_Payment_Gateway
 
         }
 
-        echo 'success';
-        die();
-
+        $asiabill_api->response();
     }
 
 }

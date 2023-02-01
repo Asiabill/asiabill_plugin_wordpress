@@ -6,7 +6,7 @@ include_once 'AsiabillLogger.php';
 
 class AsiabillIntegration
 {
-    const VERSION = '1.5';
+    const VERSION = '1.6';
     const PAYMENT_LIVE = 'https://safepay.asiabill.com';
     const PAYMENT_TEST = 'https://testpay.asiabill.com';
     const OPENAPI_LIVE = 'https://openapi.asiabill.com/openApi';
@@ -40,9 +40,11 @@ class AsiabillIntegration
         'orderInfo' => '/orderInfo/{tradeNo}', // 交易详情
     );
 
+    public $error = '';
+
     /**
      * 初始化方法
-     * @param $mode // test or live
+     * @param $mode @ test or live
      * @param $gateway_no
      * @param $sign_key
      * @throws \Exception
@@ -100,6 +102,11 @@ class AsiabillIntegration
         }
     }
 
+    static function getWebhookData()
+    {
+        return json_decode(file_get_contents( 'php://input' ),true);
+    }
+
     function startLogger($bool = true, $dir = '' )
     {
         if( !empty($dir)){
@@ -125,29 +132,47 @@ class AsiabillIntegration
         $this->url = '';
     }
 
+    /**
+     * 设置支付接口地址
+     * @return $this
+     */
     function payment()
     {
         $this->url = $this->payment_url.self::API_VERSION;
         return $this;
     }
 
+    /**
+     * 设置OpenAPI地址
+     * @return $this
+     */
     function openapi()
     {
         $this->url = $this->openapi_url.self::API_VERSION;
         return $this;
     }
 
+    /**
+     * 加载sdk脚本地址
+     * @return string
+     */
     function getJsScript(){
         return $this->payment_url.'/static/v3/js/AsiabillPayment.min.js?v='.self::VERSION;
     }
 
     /**
-     * @param $type
-     * @param array $data array('path'=>array(),'query'=>array(),'body'=>array())
+     * 发送请求
+     * @param $type @请求接口
+     * @param $data @请求数据
+     *                    [
+     *                        'path'  => [],
+     *                        'query' => [],
+     *                        'body'  => []
+     *                    ]
      * @return mixed
      * @throws \Exception
      */
-    function request($type,array $data = array())
+    function request($type, $data = array())
     {
 
         if( empty( $this->url ) ){
@@ -168,8 +193,18 @@ class AsiabillIntegration
     }
 
     /**
-     * @param $request_type 请求类型，自定义
-     * @param $request_path api路径，参考文档资料
+     * 响应处理结果
+     * @return void
+     */
+    function response(){
+        echo empty($this->error) ? 'success' : $this->error;
+        $this->error = '';
+        exit();
+    }
+
+    /**
+     * @param $request_type @请求类型，自定义
+     * @param $request_path @api路径，参考文档资料
      * @return $this
      * @throws \Exception
      */
@@ -203,20 +238,22 @@ class AsiabillIntegration
                 'orderCurrency' => $_GET['orderCurrency'],
                 'orderInfo' => $_GET['orderInfo'],
                 'orderStatus' => $_GET['orderStatus'],
-                'maskCardNo' => isset($_GET['maskCardNo'])?$_GET['maskCardNo']:'',
+                'maskCardNo' => isset( $_GET['maskCardNo'] ) ? $_GET['maskCardNo'] : '',
                 'message' => $_GET['message'],
             );
-
 
             if( $this->isLogger() ){
                 $this->logger->addLog('browser : '.json_encode($data,JSON_UNESCAPED_UNICODE),'result');
             }
 
-            return @$signInfo == strtoupper($this->signInfo($data));
+            if( @$signInfo == strtoupper($this->signInfo($data)) ){
+                return true;
+            }
+            $this->error = 'Invalid SignInfo';
         }
 
         // webhook 接收验证签名
-        if( $_SERVER['REQUEST_METHOD'] == 'POST' ){
+        elseif( $_SERVER['REQUEST_METHOD'] == 'POST' ){
 
             $request_header = array();
             foreach ( $_SERVER as $key => $value ){
@@ -224,12 +261,25 @@ class AsiabillIntegration
                     $request_header[strtolower(substr($key, 5))] = $value;
                 }
             }
+
+            if( empty($request_header['request_time']) ||
+                empty($request_header['request_id'])  ){
+                $this->error = 'Missing Request Header Information';
+                return false;
+            }
+            $cur_time = $this->requestTime();
+
+            if ($cur_time - $request_header['request_time'] > 600000  ){
+                $this->error = 'Request Time Exceeds 10 Minutes';
+                return false;
+            }
+
             $data = array(
                 'header' =>  array(
                     'gateway-no' => $this->gateway_no,
-                    'request-time' => @$request_header['request_time'],
-                    'request-id' => @$request_header['request_id'],
-                    'version' => @$request_header['version']
+                    'request-time' => $request_header['request_time'],
+                    'request-id' => $request_header['request_id'],
+                    'version' => $request_header['version']
                 ),
                 'body' => $this->getWebhookData()
             );
@@ -241,20 +291,17 @@ class AsiabillIntegration
                 $this->logger->addLog('webhook : '.json_encode($data,JSON_UNESCAPED_UNICODE),'result');
             }
 
-            return @$request_header['sign_info'] == strtoupper( $check_sign_info );
+            if( @$request_header['sign_info'] == strtoupper( $check_sign_info ) ){
+                return true;
+            }
+            $this->error = 'Invalid SignInfo';
+        }
 
+        else{
+            $this->error = 'Parameter Empty';
         }
 
         return false;
-    }
-
-    /**
-     * 获取webhook内容
-     * @return mixed
-     */
-    static function getWebhookData()
-    {
-        return json_decode(file_get_contents( 'php://input' ),true);
     }
 
     function buildQuery($result,$flags = 0){
@@ -388,9 +435,7 @@ class AsiabillIntegration
 
     private function parametersHeader()
     {
-
-        list($t1, $t2) = explode(' ', microtime());
-        $millisecond = sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
+        $millisecond = $this->requestTime();
 
         return array(
             'gateway-no' => $this->gateway_no,
@@ -398,6 +443,11 @@ class AsiabillIntegration
             'request-time' => $millisecond,
             'sign-info' => ''
         );
+    }
+
+    private function requestTime(){
+        list($t1, $t2) = explode(' ', microtime());
+        return sprintf('%.0f', (floatval($t1) + floatval($t2)) * 1000);
     }
 
     private function uniqueId($millisecond) {
@@ -467,7 +517,5 @@ class AsiabillIntegration
         return hash_hmac('sha256', $sign_str, $this->sign_key);
 
     }
-
-
 
 }

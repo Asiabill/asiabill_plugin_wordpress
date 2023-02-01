@@ -23,10 +23,13 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
             return;
         }
 
-        $order = $this->get_order_by_number( wc_clean( wp_unslash( $_REQUEST['orderNo'] ) ) );
-
+        $order = wc_get_order(absint(get_query_var('order-received')));
 
         if (  ! is_object( $order )  ) {
+            return;
+        }
+
+        if( $order->get_order_number() != $_REQUEST['orderNo'] ){
             return;
         }
 
@@ -51,17 +54,19 @@ class WC_Asiabill_Order_Handler extends WC_Asiabill_Payment_Gateway
             $order_state = $result_data['orderStatus'];
             $order_info = $result_data['orderInfo'];
 
+
             if( $this->api()->verification() ){
 
                 if( $order_state == 'fail' ){
                     $fail_message = __( 'Unable to process this payment', 'asiabill').$order_info;
                 }
 
+                $this->confirm_order($result_data['tradeNo'],$order);
+
             }else{
-                $this->logger->debug('verification is Fail');
+                $this->logger->debug($this->api()->error);
                 $fail_message = __( 'Unable to process this payment', 'asiabill').$order_info;
             }
-            $this->confirm_order($result_data['tradeNo'],$order);
 
             if( $fail_message ){
                 $this->logger->debug('pay for #'.$this->id.' status : '.$order_state.' fail : '.$order_info);

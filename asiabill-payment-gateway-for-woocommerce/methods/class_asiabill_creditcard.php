@@ -91,9 +91,15 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
 	}
 
 	public function process_admin_options(){
-	    if( $this->get_option('gateway_no') != sanitize_text_field($_POST['woocommerce_'.$this->id.'_gateway_no']) ){
+
+        $test_mode = $_POST['woocommerce_'.$this->id.'_use_test_mode'] == 1 ? 'yes' : 'no';
+        $mode = $test_mode == 'yes' ? 'test_' : '';
+
+        if( $this->get_option('gateway_no') != $test_mode ||
+            $this->get_option($mode.'gateway_no') != sanitize_text_field($_POST['woocommerce_'.$mode.$this->id.'_gateway_no']) ){
             Wc_Asiabill_Customer::dump_customer();
         }
+
         parent::process_admin_options();
     }
 
@@ -217,7 +223,7 @@ class WC_Gateway_Asiabill_Creditcard extends WC_Asiabill_Payment_Gateway {
                 'city' => $order->get_shipping_city(),
                 'country' => $order->get_shipping_country(),
                 'state' => $order->get_shipping_state(),
-                'postCode' => $order->get_shipping_postcode()
+                'postalCode' => $order->get_shipping_postcode()
             ],
             'email' => $order->get_billing_email(),
             'firstName' => $order->get_shipping_first_name(),
